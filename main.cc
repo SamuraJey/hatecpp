@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <chrono>
 #include <cstdint>
 #include <cstring>
 #include <iostream>
@@ -9,6 +10,30 @@
 #define BUFFER_SIZE 1024
 #define LARGE_BUFFER_SIZE 1024 * 10
 using namespace std;
+
+bool isDelim(char &c) {
+    switch (c) {
+        case ' ':
+        case '\n':
+        case '.':
+        case ',':
+        case '!':
+        case '-':
+        case ';':
+        case ':':
+        case '?':
+        case '"':
+        case '\'':
+        case '(':
+        case ')':
+        case '[':
+        case ']':
+        case '/':
+            return true;
+        default:
+            return false;
+    }
+}
 
 struct Buffer
 {
@@ -176,10 +201,10 @@ bool cmp(pair<const char *, int> First, pair<const char *, int> Second)
     return First.second > Second.second;
 }
 
-void TextMapTest()
+void TextMapTest(CMyAllocator<char *> &allocator)
 {
-    map<const char *, size_t, CStringComparator, CMyAllocator<char *>> Map;
-    const char *file_name = "test.txt";
+    map<const char *, size_t, CStringComparator, CMyAllocator<char *>> Map(allocator);
+    const char *file_name = "war.txt";
     FILE *file = fopen(file_name, "rb");
 
     if (file == nullptr)
@@ -207,23 +232,43 @@ void TextMapTest()
 
     vector<pair<const char *, int>> SortedWords(Map.begin(), Map.end());
     sort(SortedWords.begin(), SortedWords.end(), cmp);
-
+    int i = 0;
+    int num_of_word = 0;
+    
     for (auto Pair : SortedWords)
     {
-        printf("%s: %d\n", Pair.first, Pair.second);
+        if (i++ < 10)
+            printf("%s: %d\n", Pair.first, Pair.second);
+        num_of_word += Pair.second;
     }
+    printf("Total number of words: %d\n", num_of_word);
 
     free(ReadBuffer);
 }
 
-#include <chrono>
-
 int main()
 {
-    auto start = std::chrono::high_resolution_clock::now();
-    TextMapTest();
-    auto end = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> duration = end - start;
-    printf("Execution time: %f seconds\n", duration.count());
+    CMyAllocator<char *> linkedListAllocator;
+    CMyAllocator<char *> allocator;
+    CMyAllocator<char *> myAllocator;
+
+    auto start1 = std::chrono::high_resolution_clock::now();
+    TextMapTest(linkedListAllocator);
+    auto end1 = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> duration1 = end1 - start1;
+    printf("LinkedListAllocator execution time: %f seconds\n", duration1.count());
+
+    auto start2 = std::chrono::high_resolution_clock::now();
+    TextMapTest(allocator);
+    auto end2 = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> duration2 = end2 - start2;
+    printf("Allocator execution time: %f seconds\n", duration2.count());
+
+    auto start3 = std::chrono::high_resolution_clock::now();
+    TextMapTest(myAllocator);
+    auto end3 = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> duration3 = end3 - start3;
+    printf("CMyAllocator execution time: %f seconds\n", duration3.count());
+
     return 0;
 }
