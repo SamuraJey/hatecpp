@@ -11,27 +11,29 @@
 #define LARGE_BUFFER_SIZE 1024 * 10
 using namespace std;
 
-bool isDelim(char &c) {
-    switch (c) {
-        case ' ':
-        case '\n':
-        case '.':
-        case ',':
-        case '!':
-        case '-':
-        case ';':
-        case ':':
-        case '?':
-        case '"':
-        case '\'':
-        case '(':
-        case ')':
-        case '[':
-        case ']':
-        case '/':
-            return true;
-        default:
-            return false;
+bool isDelim(char &c)
+{
+    switch (c)
+    {
+    case ' ':
+    case '\n':
+    case '.':
+    case ',':
+    case '!':
+    case '-':
+    case ';':
+    case ':':
+    case '?':
+    case '"':
+    case '\'':
+    case '(':
+    case ')':
+    case '[':
+    case ']':
+    case '/':
+        return true;
+    default:
+        return false;
     }
 }
 
@@ -98,7 +100,7 @@ class LinkedListAllocator
     }
 };
 
-class Allocator
+class PoolAllocator
 {
     Buffer *some_buffer = nullptr;
 
@@ -112,12 +114,12 @@ class Allocator
         some_buffer = New;
     }
 
-    Allocator()
+    PoolAllocator()
     {
         createNewBuffer(BUFFER_SIZE);
     }
 
-    ~Allocator()
+    ~PoolAllocator()
     {
         while (some_buffer != nullptr)
         {
@@ -143,7 +145,7 @@ class Allocator
     }
 };
 
-Allocator allocator2024;
+PoolAllocator allocator2024;
 
 class CStringComparator
 {
@@ -234,7 +236,7 @@ void TextMapTest(CMyAllocator<char *> &allocator)
     sort(SortedWords.begin(), SortedWords.end(), cmp);
     int i = 0;
     int num_of_word = 0;
-    
+
     for (auto Pair : SortedWords)
     {
         if (i++ < 10)
@@ -262,13 +264,13 @@ int main()
     TextMapTest(allocator);
     auto end2 = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> duration2 = end2 - start2;
-    printf("Allocator execution time: %f seconds\n", duration2.count());
+    printf("PoolAllocator execution time: %f seconds\n", duration2.count());
 
     auto start3 = std::chrono::high_resolution_clock::now();
     TextMapTest(myAllocator);
     auto end3 = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> duration3 = end3 - start3;
-    printf("CMyAllocator execution time: %f seconds\n", duration3.count());
+    printf("CMyAllocator(standart) execution time: %f seconds\n", duration3.count());
 
     return 0;
 }
