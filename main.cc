@@ -10,7 +10,7 @@
 // #include "pool_allocators.cc"
 
 #define BUFFER_SIZE 1024
-#define LARGE_BUFFER_SIZE 1024 * 10
+#define LARGE_BUFFER_SIZE 1024 * 1024
 using namespace std;
 
 bool isDelim(char &c)
@@ -39,31 +39,10 @@ bool isDelim(char &c)
     }
 }
 
-class CStringComparator
-{
-  public:
-    /*
-        A < B --> true
-    */
-    bool operator()(const char *A, const char *B) const
-    {
-        while (true)
-        {
-            if (A[0] == B[0])
-            {
-                // A = B
-                if (!A[0])
-                    return false;
-
-                A++;
-                B++;
-            }
-            else
-            {
-                return A[0] < B[0];
-            }
-        }
-    }
+class Allocator {
+public:
+    virtual char* allocate(size_t count) = 0;
+    virtual void deallocate(void* p) = 0;
 };
 
 struct Buffer
@@ -72,26 +51,6 @@ struct Buffer
     size_t current = sizeof(Buffer);
     size_t size = 0;
 };
-
-class Allocator {
-public:
-    virtual char* allocate(size_t count) = 0;
-    virtual void deallocate(void* p) = 0;
-};
-
-
-struct BlockHeader
-{
-    size_t size;
-    union {
-        struct
-        {
-            BlockHeader *prev, *next;
-        };
-        char data[1];
-    };
-};
-
 
 class PoolAllocator : public Allocator
 {
@@ -138,6 +97,18 @@ class PoolAllocator : public Allocator
     }
 };
 
+struct BlockHeader
+{
+    size_t size;
+    union {
+        struct
+        {
+            BlockHeader *prev, *next;
+        };
+        char data[1];
+    };
+};
+
 class LinkedListAllocator : public Allocator
 {
     char *buffer = nullptr;
@@ -147,53 +118,77 @@ class LinkedListAllocator : public Allocator
     LinkedListAllocator()
     {
         buffer = static_cast<char *>(malloc(LARGE_BUFFER_SIZE));
+        //не проямое создание первого блока во весь буффер
         root = reinterpret_cast<BlockHeader *>(buffer);
         root->size = LARGE_BUFFER_SIZE;
         root->prev = root->next = root;
     }
 
-    void remove(BlockHeader *cur)
+    void remove_from_free(BlockHeader *cur)
     {
         BlockHeader *prev = cur->prev;
         BlockHeader *next = cur->next;
         prev->next = next;
         next->prev = prev;
-        if (next == prev)
+
+
+        //проверка на единственность в списке
+        if (cur == next)
         {
             root = nullptr;
         }
-        else if (root == cur)
+        //проверка не удаляем ли мы вырину-корень списка
+        else if (cur == root)
         {
             root = next;
         }
     }
 
-    // TODO А он ведь должен возвращать char*. А что у нас тут возвращается?
+
+    size_t bytes_allocated = 0;
     char *allocate(size_t size) override
     {
         if (root == nullptr)
         {
+            std::cout << "обосрался!!!" << std::endl;
             throw std::bad_alloc();
         }
         BlockHeader *cur = root;
-        // FIX Тут случается segmentation fault или illegal instruction
+
         while (cur->size < size + sizeof(BlockHeader) && cur != root)
         {
             cur = cur->next;
         }
-        /* ругается мы ничего не возращаем
-        control reaches end of non-void function [-Wreturn-type]gcc
-        (BlockHeader *)nullptr
-        */
+        if(cur->size < size + sizeof(BlockHeader)) {
+            std::cout << "total load: " << bytes_allocated << "/" << LARGE_BUFFER_SIZE << " bytes\nlast block cheak: " << (size + sizeof(BlockHeader)) << '/' << cur->size << std::endl;
+            throw bad_alloc();
+        }
+        bytes_allocated += size;
+        //от блока досаточного размера отрезаем необходимую часть
+        if(cur->size > size + 2 * sizeof(BlockHeader)){
+            //будем отдавать именно отрезанный кусок, чтобы не соверать лишних действий со списком свободных блоков
+            cur->size -= size + sizeof(BlockHeader);
+            BlockHeader* cuted_block = reinterpret_cast<BlockHeader *>(cur->data + (cur->size - size - 2 * sizeof(BlockHeader)));
+            cuted_block->size = size;
+            return cuted_block->data;
+        }
+        else{
+            remove_from_free(cur);
+            return cur->data;
+        }
+
     }
     
     void deallocate(void *p) override
     {
         BlockHeader *cur = reinterpret_cast<BlockHeader *>(p);
+        bytes_allocated -= cur->size;
+        std::cout << "deallocate: " << cur->size <<std::endl;   
         cur->next = root;
         cur->prev = root->prev;
         root->prev->next = cur;
         root->prev = cur;
+
     }
 };
 
@@ -240,10 +235,37 @@ bool cmp(pair<const char *, int> First, pair<const char *, int> Second)
     return First.second > Second.second;
 }
 
+class CStringComparator
+{
+  public:
+    /*
+        A < B --> true
+    */
+    bool operator()(const char *A, const char *B) const
+    {
+        while (true)
+        {
+            if (A[0] == B[0])
+            {
+                // A = B
+                if (!A[0])
+                    return false;
+
+                A++;
+                B++;
+            }
+            else
+            {
+                return A[0] < B[0];
+            }
+        }
+    }
+};
+
 void TextMapTest(CMyAllocator<char *> &allocator)
 {
     map<const char *, size_t, CStringComparator, CMyAllocator<char *>> Map(allocator);
-    const char *file_name = "war.txt";
+    const char *file_name = "test.txt";
     FILE *file = fopen(file_name, "rb");
 
     if (file == nullptr)
