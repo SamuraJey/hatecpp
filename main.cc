@@ -7,6 +7,8 @@
 #include <stdio.h>
 #include <vector>
 
+#include "pool_allocators.cc"
+
 #define BUFFER_SIZE 1024
 #define LARGE_BUFFER_SIZE 1024 * 10
 using namespace std;
@@ -37,12 +39,12 @@ bool isDelim(char &c)
     }
 }
 
-struct Buffer
-{
-    Buffer *prev = nullptr;
-    size_t current = sizeof(Buffer);
-    size_t size = 0;
-};
+// struct Buffer
+// {
+//     Buffer *prev = nullptr;
+//     size_t current = sizeof(Buffer);
+//     size_t size = 0;
+// };
 
 struct BlockHeader
 {
@@ -100,52 +102,8 @@ class LinkedListAllocator
     }
 };
 
-class PoolAllocator
-{
-    Buffer *some_buffer = nullptr;
 
-  public:
-    void createNewBuffer(size_t size)
-    {
-        Buffer *New = static_cast<Buffer *>(malloc(size + sizeof(Buffer)));
-        new (New) Buffer();
-        New->prev = some_buffer;
-        New->size = size + sizeof(Buffer);
-        some_buffer = New;
-    }
-
-    PoolAllocator()
-    {
-        createNewBuffer(BUFFER_SIZE);
-    }
-
-    ~PoolAllocator()
-    {
-        while (some_buffer != nullptr)
-        {
-            Buffer *prev = some_buffer->prev;
-            free(some_buffer);
-            some_buffer = prev;
-        }
-    }
-
-    char *allocate(size_t size)
-    {
-        if (some_buffer->size - some_buffer->current < size)
-        {
-            createNewBuffer(max(BUFFER_SIZE, (int)size));
-        }
-
-        char *ret = reinterpret_cast<char *>(some_buffer) + some_buffer->current;
-        some_buffer->current = some_buffer->current + size;
-        return ret;
-    }
-    void deallocate(void *)
-    {
-    }
-};
-
-PoolAllocator allocator2024;
+// PoolAllocator allocator2024;
 
 class CStringComparator
 {
@@ -174,29 +132,29 @@ class CStringComparator
     }
 };
 
-template <class T> class CMyAllocator
-{
-  public:
-    typedef T value_type;
+// template <class T> class CMyAllocator
+// {
+//   public:
+//     typedef T value_type;
 
-    CMyAllocator()
-    {
-    }
+//     CMyAllocator()
+//     {
+//     }
 
-    template <class U> CMyAllocator(const CMyAllocator<U> &V)
-    {
-    }
+//     template <class U> CMyAllocator(const CMyAllocator<U> &V)
+//     {
+//     }
 
-    T *allocate(size_t Count)
-    {
-        return reinterpret_cast<T *>(allocator2024.allocate(sizeof(T) * Count));
-    }
+//     T *allocate(size_t Count)
+//     {
+//         return reinterpret_cast<T *>(allocator2024.allocate(sizeof(T) * Count));
+//     }
 
-    void deallocate(T *V, size_t Count)
-    {
-        allocator2024.deallocate(V);
-    }
-};
+//     void deallocate(T *V, size_t Count)
+//     {
+//         allocator2024.deallocate(V);
+//     }
+// };
 
 bool cmp(pair<const char *, int> First, pair<const char *, int> Second)
 {
@@ -250,9 +208,9 @@ void TextMapTest(CMyAllocator<char *> &allocator)
 
 int main()
 {
-    CMyAllocator<char *> linkedListAllocator;
-    CMyAllocator<char *> allocator;
-    CMyAllocator<char *> myAllocator;
+    CPoolAllocator<char *> linkedListAllocator;
+    CPoolAllocator<char *> allocator;
+    CPoolAllocator<char *> myAllocator;
 
     auto start1 = std::chrono::high_resolution_clock::now();
     TextMapTest(linkedListAllocator);
