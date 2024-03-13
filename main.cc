@@ -7,7 +7,7 @@
 #include <stdio.h>
 #include <vector>
 
-#include "pool_allocators.cc"
+// #include "pool_allocators.cc"
 
 #define BUFFER_SIZE 1024
 #define LARGE_BUFFER_SIZE 1024 * 10
@@ -39,12 +39,46 @@ bool isDelim(char &c)
     }
 }
 
-// struct Buffer
-// {
-//     Buffer *prev = nullptr;
-//     size_t current = sizeof(Buffer);
-//     size_t size = 0;
-// };
+class CStringComparator
+{
+  public:
+    /*
+        A < B --> true
+    */
+    bool operator()(const char *A, const char *B) const
+    {
+        while (true)
+        {
+            if (A[0] == B[0])
+            {
+                // A = B
+                if (!A[0])
+                    return false;
+
+                A++;
+                B++;
+            }
+            else
+            {
+                return A[0] < B[0];
+            }
+        }
+    }
+};
+
+struct Buffer
+{
+    Buffer *prev = nullptr;
+    size_t current = sizeof(Buffer);
+    size_t size = 0;
+};
+
+class Allocator {
+public:
+    virtual char* allocate(size_t count) = 0;
+    virtual void deallocate(void* p) = 0;
+};
+
 
 struct BlockHeader
 {
@@ -58,7 +92,53 @@ struct BlockHeader
     };
 };
 
-class LinkedListAllocator
+
+class PoolAllocator : public Allocator
+{
+    Buffer *some_buffer = nullptr;
+
+  public:
+    void createNewBuffer(size_t size)
+    {
+        Buffer *New = static_cast<Buffer *>(malloc(size + sizeof(Buffer)));
+        new (New) Buffer();
+        New->prev = some_buffer;
+        New->size = size + sizeof(Buffer);
+        some_buffer = New;
+    }
+
+    PoolAllocator()
+    {
+        createNewBuffer(BUFFER_SIZE);
+    }
+
+    ~PoolAllocator()
+    {
+        while (some_buffer != nullptr)
+        {
+            Buffer *prev = some_buffer->prev;
+            free(some_buffer);
+            some_buffer = prev;
+        }
+    }
+
+    char *allocate(size_t size) override
+    {
+        if (some_buffer->size - some_buffer->current < size)
+        {
+            createNewBuffer(std::max(BUFFER_SIZE, (int)size));
+        }
+
+        char *ret = reinterpret_cast<char *>(some_buffer) + some_buffer->current;
+        some_buffer->current = some_buffer->current + size;
+        return ret;
+    }
+    void deallocate(void *) override
+    {
+    }
+};
+
+class LinkedListAllocator : public Allocator
 {
     char *buffer = nullptr;
     BlockHeader *root = nullptr;
@@ -88,73 +168,72 @@ class LinkedListAllocator
         }
     }
 
-    char *allocate(size_t size)
+    // TODO А он ведь должен возвращать char*. А что у нас тут возвращается?
+    char *allocate(size_t size) override
     {
         if (root == nullptr)
         {
-            throw bad_alloc();
+            throw std::bad_alloc();
         }
         BlockHeader *cur = root;
+        // FIX Тут случается segmentation fault или illegal instruction
         while (cur->size < size + sizeof(BlockHeader) && cur != root)
         {
             cur = cur->next;
         }
+        /* ругается мы ничего не возращаем
+        control reaches end of non-void function [-Wreturn-type]gcc
+        (BlockHeader *)nullptr
+        */
+    }
+    
+    void deallocate(void *p) override
+    {
+        BlockHeader *cur = reinterpret_cast<BlockHeader *>(p);
+        cur->next = root;
+        cur->prev = root->prev;
+        root->prev->next = cur;
+        root->prev = cur;
     }
 };
 
 
 // PoolAllocator allocator2024;
 
-class CStringComparator
-{
-  public:
-    /*
-        A < B --> true
-    */
-    bool operator()(const char *A, const char *B) const
-    {
-        while (true)
-        {
-            if (A[0] == B[0])
-            {
-                // A = B
-                if (!A[0])
-                    return false;
 
-                A++;
-                B++;
-            }
-            else
-            {
-                return A[0] < B[0];
-            }
+
+template <class T>
+class CMyAllocator {
+public:
+    typedef T value_type;
+
+    Allocator* allocator;
+
+    CMyAllocator() : allocator(nullptr) {}
+
+    CMyAllocator(const char* str) {
+        if (strcmp(str, "PoolAllocator") == 0) {
+            allocator = new PoolAllocator();
+        } 
+        else if (strcmp(str, "LinkedListAllocator") == 0) {
+            allocator = new LinkedListAllocator();
         }
     }
+
+    template <class U>
+    CMyAllocator(const CMyAllocator<U>& V) : allocator(V.allocator) {}
+
+    T* allocate(size_t count) {
+        return reinterpret_cast<T*>(allocator->allocate(sizeof(T) * count));
+    }
+
+    void deallocate(T* p, size_t count) {
+        allocator->deallocate(p);
+    }
+
+
+    
 };
-
-// template <class T> class CMyAllocator
-// {
-//   public:
-//     typedef T value_type;
-
-//     CMyAllocator()
-//     {
-//     }
-
-//     template <class U> CMyAllocator(const CMyAllocator<U> &V)
-//     {
-//     }
-
-//     T *allocate(size_t Count)
-//     {
-//         return reinterpret_cast<T *>(allocator2024.allocate(sizeof(T) * Count));
-//     }
-
-//     void deallocate(T *V, size_t Count)
-//     {
-//         allocator2024.deallocate(V);
-//     }
-// };
 
 bool cmp(pair<const char *, int> First, pair<const char *, int> Second)
 {
@@ -208,9 +287,9 @@ void TextMapTest(CMyAllocator<char *> &allocator)
 
 int main()
 {
-    CPoolAllocator<char *> linkedListAllocator;
-    CPoolAllocator<char *> allocator;
-    CPoolAllocator<char *> myAllocator;
+    CMyAllocator<char *> linkedListAllocator ("LinkedListAllocator");
+    CMyAllocator<char *> PoolAlloc("PoolAllocator");
+    // CMyAllocator<char *> myAllocator;
 
     auto start1 = std::chrono::high_resolution_clock::now();
     TextMapTest(linkedListAllocator);
@@ -219,16 +298,16 @@ int main()
     printf("LinkedListAllocator execution time: %f seconds\n", duration1.count());
 
     auto start2 = std::chrono::high_resolution_clock::now();
-    TextMapTest(allocator);
+    TextMapTest(PoolAlloc);
     auto end2 = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> duration2 = end2 - start2;
     printf("PoolAllocator execution time: %f seconds\n", duration2.count());
 
-    auto start3 = std::chrono::high_resolution_clock::now();
-    TextMapTest(myAllocator);
-    auto end3 = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> duration3 = end3 - start3;
-    printf("CMyAllocator(standart) execution time: %f seconds\n", duration3.count());
+    // auto start3 = std::chrono::high_resolution_clock::now();
+    // TextMapTest(myAllocator);
+    // auto end3 = std::chrono::high_resolution_clock::now();
+    // std::chrono::duration<double> duration3 = end3 - start3;
+    // printf("CMyAllocator(standart) execution time: %f seconds\n", duration3.count());
 
     return 0;
 }
