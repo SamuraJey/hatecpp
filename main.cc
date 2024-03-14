@@ -10,7 +10,7 @@
 // #include "pool_allocators.cc"
 
 #define BUFFER_SIZE 1024
-#define LARGE_BUFFER_SIZE 1024 * 1024
+#define LARGE_BUFFER_SIZE 1024 * 1024 * 8
 using namespace std;
 
 bool isDelim(char &c)
@@ -113,7 +113,8 @@ class LinkedListAllocator : public Allocator
 {
     char *buffer = nullptr;
     BlockHeader *root = nullptr;
-
+    size_t bytes_allocated = 0;//сумма байт всех запросов
+    size_t bytes_used = sizeof(BlockHeader);//ссума байт занятых не мусором
   public:
     LinkedListAllocator()
     {
@@ -130,60 +131,57 @@ class LinkedListAllocator : public Allocator
         BlockHeader *next = cur->next;
         prev->next = next;
         next->prev = prev;
-
-
         //проверка на единственность в списке
-        if (cur == next)
-        {
-            root = nullptr;
-        }
+        if (cur == next){ root = nullptr; }
         //проверка не удаляем ли мы вырину-корень списка
-        else if (cur == root)
-        {
-            root = next;
-        }
+        else if (cur == root){ root = next; }
     }
-
-
-    size_t bytes_allocated = 0;
+    
     char *allocate(size_t size) override
     {
         if (root == nullptr)
         {
-            std::cout << "обосрался!!!" << std::endl;
+            std::cout << "No Free blocks (or linketd list accese is lost)" << std::endl;
             throw std::bad_alloc();
         }
-        BlockHeader *cur = root;
 
-        while (cur->size < size + sizeof(BlockHeader) && cur != root)
+        BlockHeader *cur = root;
+        while (cur->size < size + sizeof(size_t) && cur != root)
         {
             cur = cur->next;
         }
-        if(cur->size < size + sizeof(BlockHeader)) {
-            std::cout << "total load: " << bytes_allocated << "/" << LARGE_BUFFER_SIZE << " bytes\nlast block cheak: " << (size + sizeof(BlockHeader)) << '/' << cur->size << std::endl;
+        if(cur->size < size + sizeof(size_t)) {
+            std::cout << "No Block of sufficient size\nBuffer size: " << LARGE_BUFFER_SIZE << "\nallocated bytes total: " << bytes_allocated << "\nbytes in use total: " << bytes_used << std::endl;
+            std::cout << "last alloc request/last cheacked block capacity: " << size << '/' << cur->size - sizeof(size_t) << std::endl;
             throw bad_alloc();
         }
+        
         bytes_allocated += size;
         //от блока досаточного размера отрезаем необходимую часть
-        if(cur->size > size + 2 * sizeof(BlockHeader)){
+        if(cur->size >= size + sizeof(BlockHeader) + sizeof(size_t)){
             //будем отдавать именно отрезанный кусок, чтобы не соверать лишних действий со списком свободных блоков
-            cur->size -= size + sizeof(BlockHeader);
-            BlockHeader* cuted_block = reinterpret_cast<BlockHeader *>(cur->data + (cur->size - size - 2 * sizeof(BlockHeader)));
+            BlockHeader* cuted_block = reinterpret_cast<BlockHeader *>((char*)cur + cur->size - size - sizeof(size_t));
+            //std::cout << "error log:\nbuffer: " << (int*)buffer << "\nbuffer end: " << (int*)(buffer + LARGE_BUFFER_SIZE);ё
+            //std::cout << "\nroot: " << root << "\ncur:  " << cur << "\ncuted:" << cuted_block;
+            //std::cout <<  "\nsize requested: " << size << "\n\n\n"; 
+            cur->size -= size + sizeof(size_t);
             cuted_block->size = size;
+            bytes_used += size + sizeof(size_t);
             return cuted_block->data;
         }
         else{
             remove_from_free(cur);
+            bytes_used += (cur->size - sizeof(BlockHeader));
             return cur->data;
         }
 
     }
-    
+    //переписать. абсолютно не верно
     void deallocate(void *p) override
     {
         BlockHeader *cur = reinterpret_cast<BlockHeader *>(p);
-        bytes_allocated -= cur->size;
-        std::cout << "deallocate: " << cur->size <<std::endl;   
+        bytes_allocated -= cur->size;//есть ошибка подсчёта
+        //std::cout << "deallocate: " << cur->size <<std::endl;   
         cur->next = root;
         cur->prev = root->prev;
         root->prev->next = cur;
@@ -261,7 +259,7 @@ void TextMapTest(Allocator* allocator)
 {
     CMyAllocator<char *> WrapperAllocator(allocator);
     map<const char *, size_t, CStringComparator, CMyAllocator<char *>> Map(WrapperAllocator); // Added parentheses to disambiguate as object declaration
-    const char *file_name = "war1.txt";
+    const char *file_name = "war_en.txt";
     FILE *file = fopen(file_name, "rb");
 
     if (file == nullptr)
