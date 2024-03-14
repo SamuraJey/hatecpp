@@ -7,11 +7,9 @@
 #include <stdio.h>
 #include <vector>
 
-// #include "pool_allocators.cc"
-
 #define BUFFER_SIZE 1024
 #define LARGE_BUFFER_SIZE 1024 * 1024 * 8
-using namespace std;
+// using namespace std;
 
 bool isDelim(char &c)
 {
@@ -39,21 +37,22 @@ bool isDelim(char &c)
     }
 }
 
-class Allocator {
-public:
-    virtual char* allocate(size_t count) = 0;
-    virtual void deallocate(void* p) = 0;
-};
-
-struct Buffer
+class Allocator
 {
-    Buffer *prev = nullptr;
-    size_t current = sizeof(Buffer);
-    size_t size = 0;
+  public:
+    virtual char *allocate(size_t count) = 0;
+    virtual void deallocate(void *p) = 0;
 };
 
 class PoolAllocator : public Allocator
 {
+    struct Buffer
+    {
+        Buffer *prev = nullptr;
+        size_t current = sizeof(Buffer);
+        size_t size = 0;
+    };
+
     Buffer *some_buffer = nullptr;
 
   public:
@@ -97,29 +96,29 @@ class PoolAllocator : public Allocator
     }
 };
 
-struct BlockHeader
-{
-    size_t size;
-    union {
-        struct
-        {
-            BlockHeader *prev, *next;
-        };
-        char data[1];
-    };
-};
-
 class LinkedListAllocator : public Allocator
 {
+    struct BlockHeader
+    {
+        size_t size;
+        union {
+            struct
+            {
+                BlockHeader *prev, *next;
+            };
+            char data[1];
+        };
+    };
     char *buffer = nullptr;
     BlockHeader *root = nullptr;
-    size_t bytes_allocated = 0;//сумма байт всех запросов
-    size_t bytes_used = sizeof(BlockHeader);//ссума байт занятых не мусором
+    size_t bytes_allocated = 0;              // сумма байт всех запросов
+    size_t bytes_used = sizeof(BlockHeader); // сумма байт занятых не мусором
+
   public:
     LinkedListAllocator()
     {
         buffer = static_cast<char *>(malloc(LARGE_BUFFER_SIZE));
-        //не проямое создание первого блока во весь буффер
+        // непрямое создание первого блока во весь буффер
         root = reinterpret_cast<BlockHeader *>(buffer);
         root->size = LARGE_BUFFER_SIZE;
         root->prev = root->next = root;
@@ -131,17 +130,23 @@ class LinkedListAllocator : public Allocator
         BlockHeader *next = cur->next;
         prev->next = next;
         next->prev = prev;
-        //проверка на единственность в списке
-        if (cur == next){ root = nullptr; }
-        //проверка не удаляем ли мы вырину-корень списка
-        else if (cur == root){ root = next; }
+        // проверка на единственность в списке
+        if (cur == next)
+        {
+            root = nullptr;
+        }
+        // проверка не удаляем ли мы вершину-корень списка
+        else if (cur == root)
+        {
+            root = next;
+        }
     }
-    
+
     char *allocate(size_t size) override
     {
         if (root == nullptr)
         {
-            std::cout << "No Free blocks (or linketd list accese is lost)" << std::endl;
+            std::cout << "No Free blocks (or linked list access is lost)" << std::endl;
             throw std::bad_alloc();
         }
 
@@ -150,80 +155,82 @@ class LinkedListAllocator : public Allocator
         {
             cur = cur->next;
         }
-        if(cur->size < size + sizeof(size_t)) {
-            std::cout << "No Block of sufficient size\nBuffer size: " << LARGE_BUFFER_SIZE << "\nallocated bytes total: " << bytes_allocated << "\nbytes in use total: " << bytes_used << std::endl;
-            std::cout << "last alloc request/last cheacked block capacity: " << size << '/' << cur->size - sizeof(size_t) << std::endl;
-            throw bad_alloc();
+        if (cur->size < size + sizeof(size_t))
+        {
+            std::cout << "No Block of sufficient size\nBuffer size: " << LARGE_BUFFER_SIZE
+                      << "\nallocated bytes total: " << bytes_allocated << "\nbytes in use total: " << bytes_used
+                      << std::endl;
+            std::cout << "last alloc request/last checked block capacity: " << size << '/' << cur->size - sizeof(size_t)
+                      << std::endl;
+            throw std::bad_alloc();
         }
-        
+
         bytes_allocated += size;
-        //от блока досаточного размера отрезаем необходимую часть
-        if(cur->size >= size + sizeof(BlockHeader) + sizeof(size_t)){
-            //будем отдавать именно отрезанный кусок, чтобы не соверать лишних действий со списком свободных блоков
-            BlockHeader* cuted_block = reinterpret_cast<BlockHeader *>((char*)cur + cur->size - size - sizeof(size_t));
-            //std::cout << "error log:\nbuffer: " << (int*)buffer << "\nbuffer end: " << (int*)(buffer + LARGE_BUFFER_SIZE);ё
-            //std::cout << "\nroot: " << root << "\ncur:  " << cur << "\ncuted:" << cuted_block;
-            //std::cout <<  "\nsize requested: " << size << "\n\n\n"; 
+        // от блока достаточного размера отрезаем необходимую часть
+        if (cur->size >= size + sizeof(BlockHeader) + sizeof(size_t))
+        {
+            // будем отдавать именно отрезанный кусок, чтобы не соверать лишних действий со списком свободных блоков
+            BlockHeader *cuted_block = reinterpret_cast<BlockHeader *>((char *)cur + cur->size - size - sizeof(size_t));
+            // std::cout << "error log:\nbuffer: " << (int*)buffer << "\nbuffer end: " << (int*)(buffer +
+            // LARGE_BUFFER_SIZE); std::cout << "\nroot: " << root << "\ncur:  " << cur << "\ncuted:" << cuted_block;
+            // std::cout <<  "\nsize requested: " << size << "\n\n\n";
             cur->size -= size + sizeof(size_t);
             cuted_block->size = size;
             bytes_used += size + sizeof(size_t);
             return cuted_block->data;
         }
-        else{
+        else
+        {
             remove_from_free(cur);
             bytes_used += (cur->size - sizeof(BlockHeader));
             return cur->data;
         }
-
     }
-    //переписать. абсолютно не верно
+    // TODO FIX переписать. Абсолютно не верно
     void deallocate(void *p) override
     {
         BlockHeader *cur = reinterpret_cast<BlockHeader *>(p);
-        bytes_allocated -= cur->size;//есть ошибка подсчёта
-        //std::cout << "deallocate: " << cur->size <<std::endl;   
+        bytes_allocated -= cur->size; // есть ошибка подсчёта
+        // std::cout << "deallocate: " << cur->size <<std::endl;
         cur->next = root;
         cur->prev = root->prev;
         root->prev->next = cur;
         root->prev = cur;
-
     }
 };
 
-
-// PoolAllocator allocator2024;
-
-
-
-template <class T>
-class CMyAllocator {
-public:
+template <class T> class CMyAllocator
+{
+  public:
     typedef T value_type;
 
-    Allocator* allocator = nullptr;
+    Allocator *allocator = nullptr;
 
-    CMyAllocator() : allocator(nullptr) {}
+    CMyAllocator() : allocator(nullptr)
+    {
+    }
 
-    CMyAllocator(Allocator* ByteAllocator) {
+    CMyAllocator(Allocator *ByteAllocator)
+    {
         allocator = ByteAllocator;
     }
 
-    template <class U>
-    CMyAllocator(const CMyAllocator<U>& V) : allocator(V.allocator) {}
-
-    T* allocate(size_t count) {
-        return reinterpret_cast<T*>(allocator->allocate(sizeof(T) * count));
+    template <class U> CMyAllocator(const CMyAllocator<U> &V) : allocator(V.allocator)
+    {
     }
 
-    void deallocate(T* p, size_t count) {
+    T *allocate(size_t count)
+    {
+        return reinterpret_cast<T *>(allocator->allocate(sizeof(T) * count));
+    }
+
+    void deallocate(T *p, size_t count)
+    {
         allocator->deallocate(p);
     }
-
-
-    
 };
 
-bool cmp(pair<const char *, int> First, pair<const char *, int> Second)
+bool cmp(std::pair<const char *, int> First, std::pair<const char *, int> Second)
 {
     return First.second > Second.second;
 }
@@ -255,19 +262,16 @@ class CStringComparator
     }
 };
 
-void TextMapTest(Allocator* allocator)
+char *ReadFromFile(const char *file_name)
 {
-    CMyAllocator<char *> WrapperAllocator(allocator);
-    map<const char *, size_t, CStringComparator, CMyAllocator<char *>> Map(WrapperAllocator); // Added parentheses to disambiguate as object declaration
-    const char *file_name = "war_en.txt";
     FILE *file = fopen(file_name, "rb");
-
     if (file == nullptr)
     {
         printf("fopen\n");
         printf("Terminal failure: unable to open file \"%s\" for read.\n", file_name);
-        return;
+        return nullptr;
     }
+
     fseek(file, 0, SEEK_END);
     long long file_size = ftell(file);
     rewind(file);
@@ -278,15 +282,23 @@ void TextMapTest(Allocator* allocator)
     ReadBuffer[file_size] = '\0';
     fclose(file);
 
-    char *Word = strtok(ReadBuffer, " \n\t\r");
+    return ReadBuffer;
+}
+
+void TextMapTest(Allocator *allocator, char *TextBuffer)
+{
+    CMyAllocator<char *> WrapperAllocator(allocator);
+    std::map<const char *, size_t, CStringComparator, CMyAllocator<char *>> Map(WrapperAllocator);
+
+    char *Word = strtok(TextBuffer, " \n\t\r");
     while (Word != nullptr)
     {
         Map[Word]++;
         Word = strtok(nullptr, " \n\t\r");
     }
 
-    vector<pair<const char *, int>> SortedWords(Map.begin(), Map.end());
-    sort(SortedWords.begin(), SortedWords.end(), cmp);
+    std::vector<std::pair<const char *, int>> SortedWords(Map.begin(), Map.end());
+    std::sort(SortedWords.begin(), SortedWords.end(), cmp);
     int i = 0;
     int num_of_word = 0;
 
@@ -298,27 +310,29 @@ void TextMapTest(Allocator* allocator)
     }
     printf("Total number of words: %d\n", num_of_word);
 
-    free(ReadBuffer);
+    free(TextBuffer);
 }
 
 int main()
 {
-    LinkedListAllocator* linkedListAllocator = new LinkedListAllocator();
-    PoolAllocator* poolAllocator = new PoolAllocator();
-
+    LinkedListAllocator *linkedListAllocator = new LinkedListAllocator();
+    PoolAllocator *poolAllocator = new PoolAllocator();
+    char *ReadBuffer = ReadFromFile("war_en.txt");
 
     auto start1 = std::chrono::high_resolution_clock::now();
-    TextMapTest(linkedListAllocator);
+    TextMapTest(linkedListAllocator, strdup(ReadBuffer));
     auto end1 = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> duration1 = end1 - start1;
-    printf("LinkedListAllocator execution time: %f seconds\n", duration1.count());
+    printf("LinkedListAllocator execution time: %f seconds\n\n", duration1.count());
 
     auto start2 = std::chrono::high_resolution_clock::now();
-    TextMapTest(poolAllocator);
+    TextMapTest(poolAllocator, strdup(ReadBuffer));
     auto end2 = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> duration2 = end2 - start2;
-    printf("PoolAllocator execution time: %f seconds\n", duration2.count());
+    printf("PoolAllocator execution time: %f seconds\n\n", duration2.count());
 
-
+    free(ReadBuffer);
+    delete linkedListAllocator;
+    delete poolAllocator;
     return 0;
 }
