@@ -202,17 +202,12 @@ class CMyAllocator {
 public:
     typedef T value_type;
 
-    Allocator* allocator;
+    Allocator* allocator = nullptr;
 
     CMyAllocator() : allocator(nullptr) {}
 
-    CMyAllocator(const char* str) {
-        if (strcmp(str, "PoolAllocator") == 0) {
-            allocator = new PoolAllocator();
-        } 
-        else if (strcmp(str, "LinkedListAllocator") == 0) {
-            allocator = new LinkedListAllocator();
-        }
+    CMyAllocator(Allocator* ByteAllocator) {
+        allocator = ByteAllocator;
     }
 
     template <class U>
@@ -262,10 +257,11 @@ class CStringComparator
     }
 };
 
-void TextMapTest(CMyAllocator<char *> &allocator)
+void TextMapTest(Allocator* allocator)
 {
-    map<const char *, size_t, CStringComparator, CMyAllocator<char *>> Map(allocator);
-    const char *file_name = "test.txt";
+    CMyAllocator<char *> WrapperAllocator(allocator);
+    map<const char *, size_t, CStringComparator, CMyAllocator<char *>> Map(WrapperAllocator); // Added parentheses to disambiguate as object declaration
+    const char *file_name = "war1.txt";
     FILE *file = fopen(file_name, "rb");
 
     if (file == nullptr)
@@ -309,9 +305,9 @@ void TextMapTest(CMyAllocator<char *> &allocator)
 
 int main()
 {
-    CMyAllocator<char *> linkedListAllocator ("LinkedListAllocator");
-    CMyAllocator<char *> PoolAlloc("PoolAllocator");
-    // CMyAllocator<char *> myAllocator;
+    LinkedListAllocator* linkedListAllocator = new LinkedListAllocator();
+    PoolAllocator* poolAllocator = new PoolAllocator();
+
 
     auto start1 = std::chrono::high_resolution_clock::now();
     TextMapTest(linkedListAllocator);
@@ -320,16 +316,11 @@ int main()
     printf("LinkedListAllocator execution time: %f seconds\n", duration1.count());
 
     auto start2 = std::chrono::high_resolution_clock::now();
-    TextMapTest(PoolAlloc);
+    TextMapTest(poolAllocator);
     auto end2 = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> duration2 = end2 - start2;
     printf("PoolAllocator execution time: %f seconds\n", duration2.count());
 
-    // auto start3 = std::chrono::high_resolution_clock::now();
-    // TextMapTest(myAllocator);
-    // auto end3 = std::chrono::high_resolution_clock::now();
-    // std::chrono::duration<double> duration3 = end3 - start3;
-    // printf("CMyAllocator(standart) execution time: %f seconds\n", duration3.count());
 
     return 0;
 }
