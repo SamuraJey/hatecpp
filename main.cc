@@ -248,7 +248,7 @@ class CMyAllocator {
     }
 };
 
-bool cmp(std::pair<const char*, int> First, std::pair<const char*, int> Second) {
+bool cmp(std::pair<const char*, size_t> First, std::pair<const char*, size_t> Second) {
     return First.second > Second.second;
 }
 
@@ -268,30 +268,41 @@ class CStringComparator {
     }
 };
 
-char* ReadFromFile(const char* file_name) {
-    FILE* file = fopen(file_name, "rb");
-    if (file == nullptr) {
+char* ReadFromFile(const char* FileName) {
+    FILE* File = fopen(FileName, "rb");
+    if (File == nullptr) {
         printf("fopen\n");
-        printf("Terminal failure: unable to open file \"%s\" for read.\n", file_name);
+        printf("Terminal failure: unable to open file \"%s\" for read.\n", FileName);
         return nullptr;
     }
 
-    fseek(file, 0, SEEK_END);
-    long long file_size = ftell(file);
-    rewind(file);
+    fseek(File, 0, SEEK_END);
+    long long FileSize = ftell(File);
+    rewind(File);
 
-    char* ReadBuffer = static_cast<char*>(malloc(file_size + 1));
-    printf("file_size = %lld\n", file_size);
-    fread(ReadBuffer, 1, file_size, file);
-    ReadBuffer[file_size] = '\0';
-    fclose(file);
+    char* ReadBuffer = static_cast<char*>(malloc(FileSize + 1));
+    // printf("FileSize = %lld\n", FileSize);
+
+    // Добавил переменную принмающее значение fread, что бы не было warning
+    // И сделал проверку на количество реально считанных байт и размер файла
+    size_t TotalBytesRead = fread(ReadBuffer, 1, FileSize, File);
+    if (TotalBytesRead == (size_t)FileSize) {
+        printf("TotalBytesRead and FileSize are the same: %lu\n\n", TotalBytesRead);
+    } else {
+        printf("WARNING\nTotalBytesRead and FileSize are NOT the same\n");
+        printf("TotalBytesRead = %lu and FileSize = %lld\n\n", TotalBytesRead, FileSize);
+    }
+
+    ReadBuffer[FileSize] = '\0';
+    fclose(File);
 
     return ReadBuffer;
 }
 
 void TextMapTest(Allocator* allocator, char* TextBuffer) {
     CMyAllocator<char*> WrapperAllocator(allocator);
-    std::map<const char*, size_t, CStringComparator, CMyAllocator<char*>> Map(WrapperAllocator);
+    // std::map<const char*, unsigned long long, CStringComparator, CMyAllocator<char*>> Map(WrapperAllocator);
+    std::map<const char*, size_t, CStringComparator, CMyAllocator<std::pair<const char* const, size_t>>> Map(WrapperAllocator);
 
     char* Word = strtok(TextBuffer, " \n\t\r");
     while (Word != nullptr) {
