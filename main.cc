@@ -174,8 +174,6 @@ class LinkedListAllocator : public Allocator {
 
     // Я конечно сделал, но нужно допиливать. Безбожно медленно + по логированию очищается не всё.
     // (вообще не понял почему он не бросает segmentation segmentation falts).
-    // P.s. лол после десятка запусков VSС перестал сварачивать некоторые блоки кода.
-    // Кажись аллокатор затерает память IDE!.
     void deallocate(void* ptr) override {
         //!!! p - адресс на начала данных, не блока
         BlockHeader* to_free = reinterpret_cast<BlockHeader*>((char*)ptr - sizeof(std::size_t));
@@ -326,16 +324,16 @@ void TextMapTest(Allocator* allocator, char* TextBuffer) {
 }
 
 int main() {
-    LinkedListAllocator* linkedListAllocator = new LinkedListAllocator();
-    PoolAllocator* poolAllocator = new PoolAllocator();
     char* ReadBuffer = ReadFromFile("war_en.txt");
 
+    PoolAllocator* poolAllocator = new PoolAllocator();
     auto start2 = std::chrono::high_resolution_clock::now();
     TextMapTest(poolAllocator, strdup(ReadBuffer));
     auto end2 = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> duration2 = end2 - start2;
     printf("PoolAllocator execution time: %f seconds\n\n", duration2.count());
 
+    LinkedListAllocator* linkedListAllocator = new LinkedListAllocator();
     auto start1 = std::chrono::high_resolution_clock::now();
     TextMapTest(linkedListAllocator, strdup(ReadBuffer));
     auto end1 = std::chrono::high_resolution_clock::now();
