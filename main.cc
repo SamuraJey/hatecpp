@@ -201,7 +201,7 @@ class CMyAllocator {
     }
 };
 
-bool cmp(std::pair<const char*, int> First, std::pair<const char*, int> Second) {
+bool cmp(std::pair<const char*, size_t> First, std::pair<const char*, size_t> Second) {
     return First.second > Second.second;
 }
 
@@ -249,7 +249,8 @@ char* ReadFromFile(const char* file_name) {
 
 void TextMapTest(Allocator* allocator, char* TextBuffer) {
     CMyAllocator<char*> WrapperAllocator(allocator);
-    std::map<const char*, size_t, CStringComparator, CMyAllocator<char*>> Map(WrapperAllocator);
+    // std::map<const char*, unsigned long long, CStringComparator, CMyAllocator<char*>> Map(WrapperAllocator);
+    std::map<const char*, size_t, CStringComparator, CMyAllocator<std::pair<const char* const, size_t>>> Map(WrapperAllocator);
 
     char* Word = strtok(TextBuffer, " \n\t\r");
     while (Word != nullptr) {
