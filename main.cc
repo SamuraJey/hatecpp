@@ -9,7 +9,7 @@
 #include <vector>
 
 #define BUFFER_SIZE 1024
-#define LARGE_BUFFER_SIZE 1024 * 1024 * 8
+#define LARGE_BUFFER_SIZE 1024 * 1024 * 3
 // using namespace std;
 
 bool isDelim(char& c) {
@@ -99,35 +99,47 @@ class LinkedListAllocator : public Allocator {
     char* buffer = nullptr;
     BlockHeader* root = nullptr;
     size_t bytes_allocated = 0;               // сумма байт всех запросов
-    size_t bytes_used = sizeof(BlockHeader);  // сумма байт занятых не мусором
+    size_t bytes_used = sizeof(BlockHeader);  // сумма занятых байт
 
    public:
     LinkedListAllocator() {
         buffer = static_cast<char*>(malloc(LARGE_BUFFER_SIZE));
         // непрямое создание первого блока во весь буффер
+        // только в этом языке можно создать обьект без конструктора, лол
         root = reinterpret_cast<BlockHeader*>(buffer);
         root->size = LARGE_BUFFER_SIZE;
         root->prev = root->next = root;
+        printf("LLAllocator construction succesful\nroot: %p, buffer size: %d\n",
+               root, LARGE_BUFFER_SIZE);
     }
 
-    void remove_from_free(BlockHeader* cur) {
-        BlockHeader* prev = cur->prev;
-        BlockHeader* next = cur->next;
+    ~LinkedListAllocator() {
+        printf("LLAllocator decostructor log\nroot: %p, size: %d, sinle block left? %d\nbytes left allocated: %d, bytes left used: %d\n",
+               root, root->size, root == root->next, bytes_allocated, bytes_used);
+        free(buffer);
+    }
+
+    void remove_from_free(BlockHeader* rem) {
+        BlockHeader* prev = rem->prev;
+        BlockHeader* next = rem->next;
+        if (rem == root) {
+            if (rem == next) {
+                // список из 1 удоляемого элемента - забываем
+                root = nullptr;
+                return;
+            } else {
+                // потдержание доступа к списку
+                root = next;
+            }
+        }
         prev->next = next;
         next->prev = prev;
-        // проверка на единственность в списке
-        if (cur == next) {
-            root = nullptr;
-        }
-        // проверка не удаляем ли мы вершину-корень списка
-        else if (cur == root) {
-            root = next;
-        }
+        return;
     }
 
     char* allocate(size_t size) override {
         if (root == nullptr) {
-            std::cout << "No Free blocks (or linked list access is lost)" << std::endl;
+            printf("No Free blocks (or linked list access is lost)\n");
             throw std::bad_alloc();
         }
 
@@ -136,22 +148,19 @@ class LinkedListAllocator : public Allocator {
             cur = cur->next;
         }
         if (cur->size < size + sizeof(size_t)) {
-            std::cout << "No Block of sufficient size\nBuffer size: " << LARGE_BUFFER_SIZE
-                      << "\nallocated bytes total: " << bytes_allocated << "\nbytes in use total: " << bytes_used
-                      << std::endl;
-            std::cout << "last alloc request/last checked block capacity: " << size << '/' << cur->size - sizeof(size_t)
-                      << std::endl;
+            printf(
+                "No Block of sufficient size error\nBuffer size: %d\nallocated bytes total: %d\n\
+                bytes in uses total: \nlast alloc request/last checked block capacity: %d/%d\n",
+                LARGE_BUFFER_SIZE, bytes_allocated, bytes_used, size, cur->size - sizeof(size_t));
             throw std::bad_alloc();
         }
 
         bytes_allocated += size;
         // от блока достаточного размера отрезаем необходимую часть
         if (cur->size >= size + sizeof(BlockHeader) + sizeof(size_t)) {
-            // будем отдавать именно отрезанный кусок, чтобы не соверать лишних действий со списком свободных блоков
+            // будем отдавать новый кусок, чтобы не соверать лишних действий со списком свободных блоков
             BlockHeader* cuted_block = reinterpret_cast<BlockHeader*>((char*)cur + cur->size - size - sizeof(size_t));
-            // std::cout << "error log:\nbuffer: " << (int*)buffer << "\nbuffer end: " << (int*)(buffer +
-            // LARGE_BUFFER_SIZE); std::cout << "\nroot: " << root << "\ncur:  " << cur << "\ncuted:" << cuted_block;
-            // std::cout <<  "\nsize requested: " << size << "\n\n\n";
+
             cur->size -= size + sizeof(size_t);
             cuted_block->size = size;
             bytes_used += size + sizeof(size_t);
@@ -162,15 +171,53 @@ class LinkedListAllocator : public Allocator {
             return cur->data;
         }
     }
-    // TODO FIX переписать. Абсолютно не верно
-    void deallocate(void* p) override {
-        BlockHeader* cur = reinterpret_cast<BlockHeader*>(p);
-        bytes_allocated -= cur->size;  // есть ошибка подсчёта
-        // std::cout << "deallocate: " << cur->size <<std::endl;
-        cur->next = root;
-        cur->prev = root->prev;
-        root->prev->next = cur;
-        root->prev = cur;
+
+    // Я конечно сделал, но нужно допиливать. Безбожно медленно + по логированию очищается не всё.
+    // (вообще не понял почему он не бросает segmentation segmentation falts).
+    // P.s. лол после десятка запусков VSС перестал сварачивать некоторые блоки кода.
+    // Кажись аллокатор затерает память IDE!.
+    void deallocate(void* ptr) override {
+        //!!! p - адресс на начала данных, не блока
+        BlockHeader* to_free = reinterpret_cast<BlockHeader*>((char*)ptr - sizeof(std::size_t));
+
+        bytes_allocated -= to_free->size - sizeof(std::size_t);  // накапливается ошибка подсчёта
+        bytes_used -= to_free->size - sizeof(BlockHeader);
+
+        if (root == nullptr) {
+            root = to_free->prev = to_free->next = to_free;
+            return;
+        }
+
+        BlockHeader *cur = root, *prev_free = nullptr, *next_free = nullptr;
+        do {  // запоминаем граничащие свободные блоки
+            if ((char*)cur + cur->size == (char*)to_free) {
+                prev_free = cur;
+            } else if ((char*)to_free + to_free->size == (char*)cur) {
+                next_free = cur;
+            }
+        } while ((cur = cur->next) != root);
+
+        // далее обработка 4 случаев. (наличие/отсутствие)*(првого/левого) соседа для слияния
+        switch ((bool)prev_free << 1 | (bool)next_free) {
+        case 0:  // соседей нет => вставляем блок за корнем
+            (to_free->prev = root)->next = (to_free->next = root->next)->prev = to_free;
+            break;
+        case 1:  // только сосед справа => подменяем в списке соседа на себя и присоединяем его
+            (to_free->prev = next_free->prev)->next = (to_free->next = next_free->next)->prev = to_free;
+            to_free->size += next_free->size;
+            break;
+        case 2:  // только сосед слева => присоеденяемся к нему
+            prev_free->size += to_free->size;
+            break;
+        case 3:  // оба соседа => вырезаем правого и присоденяем себя и правого к левому
+            prev_free->size += to_free->size + next_free->size;
+            remove_from_free(next_free);
+            break;
+        default:
+            printf("мы не знаем что это такое...\n");
+            throw std::bad_exception();
+            break;
+        }
     }
 };
 
@@ -211,18 +258,13 @@ class CStringComparator {
         A < B --> true
     */
     bool operator()(const char* A, const char* B) const {
-        while (true) {
-            if (A[0] == B[0]) {
-                // A = B
-                if (!A[0])
-                    return false;
-
-                A++;
-                B++;
-            } else {
-                return A[0] < B[0];
-            }
+        // выход на первой отличающийся буквах
+        // или кода a = b ='\0' -> ret false
+        while (A[0] == B[0] && A[0]) {
+            A++;
+            B++;
         }
+        return A[0] < B[0];
     }
 };
 
@@ -277,17 +319,17 @@ int main() {
     PoolAllocator* poolAllocator = new PoolAllocator();
     char* ReadBuffer = ReadFromFile("war_en.txt");
 
-    auto start1 = std::chrono::high_resolution_clock::now();
-    TextMapTest(linkedListAllocator, strdup(ReadBuffer));
-    auto end1 = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> duration1 = end1 - start1;
-    printf("LinkedListAllocator execution time: %f seconds\n\n", duration1.count());
-
     auto start2 = std::chrono::high_resolution_clock::now();
     TextMapTest(poolAllocator, strdup(ReadBuffer));
     auto end2 = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> duration2 = end2 - start2;
     printf("PoolAllocator execution time: %f seconds\n\n", duration2.count());
+
+    auto start1 = std::chrono::high_resolution_clock::now();
+    TextMapTest(linkedListAllocator, strdup(ReadBuffer));
+    auto end1 = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> duration1 = end1 - start1;
+    printf("LinkedListAllocator execution time: %f seconds\n\n", duration1.count());
 
     free(ReadBuffer);
     delete linkedListAllocator;
