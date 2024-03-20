@@ -139,9 +139,9 @@ root: %p, buffer size: %d\n\n",
 #if DEBUG
         printf(
             "Linked Aist Allocator decostructor log\n\
-root: addr: %p, size: %d\n\
-bytes left allocated: %d, bytes left used: %d\n\
-sinle block left? %d, block count: %d, max block count: %d\n\
+root: addr: %p, size: %lu\n\
+bytes left allocated: %lu, bytes left used: %lu\n\
+sinle block left? %d, block count: %lu, max block count: %lu\n\
 block distribution:\n",
             root, root->size,
             bytes_allocated, bytes_used,
@@ -150,7 +150,7 @@ block distribution:\n",
         for (size_t size = 0; size < LARGE_BUFFER_SIZE; ++size) {
             size_t count = block_size_distribution[size];
             if (count) {
-                printf("size %d blocks %d\n", size, count);
+                printf("size %lu blocks %lu\n", size, count);
             }
         }
 #endif
@@ -189,7 +189,7 @@ block distribution:\n",
         if (cur->size < size + A_header) {
             printf(
                 "No Block of sufficient size error\nBuffer size: %d\n\
-                last alloc request/last checked block capacity: %d/%d\n",
+                last alloc request/last checked block capacity: %lu/%lu\n",
                 LARGE_BUFFER_SIZE, size, cur->size - A_header);
             throw std::bad_alloc();
         }
