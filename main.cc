@@ -8,9 +8,11 @@
 #include <map>
 #include <vector>
 
-#define BUFFER_SIZE 1024
-#define LARGE_BUFFER_SIZE 1024 * 1024 * 3
-#define DEBUG 1
+#include "PoolAllocator.hh"
+#include "constants.hh" // Инклуд заголовка с константами типа BUFFER_SIZE и DEBUG
+// #define BUFFER_SIZE 1024
+// #define LARGE_BUFFER_SIZE 1024 * 1024 * 3
+// #define DEBUG 1
 
 bool isDelim(char& c) {
     switch (c) {
@@ -35,55 +37,6 @@ bool isDelim(char& c) {
         return false;
     }
 }
-
-class Allocator {
-   public:
-    virtual char* allocate(size_t count) = 0;
-    virtual void deallocate(void* p) = 0;
-};
-
-class PoolAllocator : public Allocator {
-    struct Buffer {
-        Buffer* prev = nullptr;
-        size_t current = sizeof(Buffer);
-        size_t size = 0;
-    };
-
-    Buffer* some_buffer = nullptr;
-
-   public:
-    void createNewBuffer(size_t size) {
-        Buffer* New = static_cast<Buffer*>(malloc(size + sizeof(Buffer)));
-        new (New) Buffer();
-        New->prev = some_buffer;
-        New->size = size + sizeof(Buffer);
-        some_buffer = New;
-    }
-
-    PoolAllocator() {
-        createNewBuffer(BUFFER_SIZE);
-    }
-
-    ~PoolAllocator() {
-        while (some_buffer != nullptr) {
-            Buffer* prev = some_buffer->prev;
-            free(some_buffer);
-            some_buffer = prev;
-        }
-    }
-
-    char* allocate(size_t size) override {
-        if (some_buffer->size - some_buffer->current < size) {
-            createNewBuffer(std::max(BUFFER_SIZE, (int)size));
-        }
-
-        char* ret = reinterpret_cast<char*>(some_buffer) + some_buffer->current;
-        some_buffer->current = some_buffer->current + size;
-        return ret;
-    }
-    void deallocate(void*) override {
-    }
-};
 
 class LinkedListAllocator : public Allocator {
     struct BlockHeader {
@@ -406,6 +359,8 @@ void TextMapTest(Allocator* allocator, char* TextBuffer) {
 }
 
 int main() {
+    // TODO Если хотим работать через Cmake надо че-то делать, потому что cmake запускает программу в совей директории build где нет файла war_en.txt
+    // Но каждый раз туда копировать файл как-то странно. Не знаю как решать пока.
     char* ReadBuffer = ReadFromFile("war_en.txt");
 
     PoolAllocator* poolAllocator = new PoolAllocator();
