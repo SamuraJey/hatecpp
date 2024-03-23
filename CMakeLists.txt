@@ -9,4 +9,5 @@ add_executable(allocators
     # PoolAllocator.hh
     PoolAllocator.cc
     # war_en.txt
+    LinkedListAllocator.cc
     )
