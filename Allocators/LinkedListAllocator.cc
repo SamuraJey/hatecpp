@@ -9,7 +9,7 @@
 #include <new>
 
 #include "BlockHeader.hh"
-#include "constants.hh"  // Почему автоформатирование делает такой странный порядок инклудов...................
+#include "../constants.hh"  // Почему автоформатирование делает такой странный порядок инклудов...................
 
 // Alias for Free header size
 static constexpr size_t F_hrader = sizeof(BlockHeader);
