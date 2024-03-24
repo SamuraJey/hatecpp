@@ -12,7 +12,7 @@
 #include "Allocators/PoolAllocator.hh"
 #include "constants.hh"  // Инклуд заголовка с константами типа BUFFER_SIZE и DEBUG
 // #define BUFFER_SIZE 1024
-// #define LARGE_BUFFER_SIZE 1024 * 1024 * 3
+// #define LINKED_BUFFER_SIZE 1024 * 1024 * 3
 // #define DEBUG 1
 
 bool isDelim(char& c) {

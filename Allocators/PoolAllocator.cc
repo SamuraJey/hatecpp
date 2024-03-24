@@ -1,7 +1,6 @@
 #include "PoolAllocator.hh"
 
 #include <malloc.h>
-#include <stdlib.h>
 
 #include <new>
 
@@ -13,12 +12,9 @@ struct PoolAllocator::Buffer {
     size_t size = 0;
 };
 
-// буффер должен принадлежать экземпляру аллокатора
-// несколько pool аллокаторов будут работать с одной переменной
-// и как some_buffer работал без метки static - для меня загадка
-
 PoolAllocator::PoolAllocator() {
-    createNewBuffer(BUFFER_SIZE);
+    buffer_list_head = nullptr;
+    createNewBuffer(POOL_BUFFER_SIZE);
 }
 
 PoolAllocator::~PoolAllocator() {
@@ -29,28 +25,28 @@ PoolAllocator::~PoolAllocator() {
     }
 }
 
-void PoolAllocator::createNewBuffer(size_t size) {
+void PoolAllocator::createNewBuffer(std::size_t size) {
     Buffer* New = static_cast<Buffer*>(malloc(size + sizeof(Buffer)));
-    new (New) Buffer();
+    new (New) Buffer();  // placment new
     New->prev = buffer_list_head;
     New->size = size + sizeof(Buffer);
     buffer_list_head = New;
 }
 
 char* PoolAllocator::allocate(std::size_t size) {
-    if (buffer_list_head->size - buffer_list_head->current < size) {
-        if (BUFFER_SIZE >= (int)size) {
-            createNewBuffer(BUFFER_SIZE);
+    if (buffer_list_head->current + size > buffer_list_head->size) {
+        if (POOL_BUFFER_SIZE >= (int)size) {
+            createNewBuffer(POOL_BUFFER_SIZE);
         } else {
-            createNewBuffer((int)size);
+            createNewBuffer(size);
         }
         // std::max Defined in header <algorithm>
         // тернарный оператор - ещё один вариант
-        // createNewBuffer((size > BUFFER_SIZE) ? (size) : (Buffer));
+        // createNewBuffer((size > POOL_BUFFER_SIZE) ? (size) : (POOL_BUFFER_SIZE));
     }
 
     char* ret = reinterpret_cast<char*>(buffer_list_head) + buffer_list_head->current;
-    buffer_list_head->current = buffer_list_head->current + size;
+    buffer_list_head->current += size;
     return ret;
 }
 void PoolAllocator::deallocate(void*) {

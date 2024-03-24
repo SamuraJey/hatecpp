@@ -8,44 +8,37 @@
 #include <exception>
 #include <new>
 
-#include "BlockHeader.hh"
 #include "../constants.hh"  // Почему автоформатирование делает такой странный порядок инклудов...................
 
-// Alias for Free header size
-static constexpr size_t F_hrader = sizeof(BlockHeader);
-// Alias for Allocated header size
-static constexpr size_t A_header = sizeof(size_t);
+struct LinkedListAllocator::BlockHeader {
+    size_t size;
+    union {
+        struct
+        {
+            BlockHeader *prev, *next;
+        };
+        char data[1];
+    };
+};
 
-char* buffer;
-BlockHeader* root;
-
-#if DEBUG
-// сумма байт всех запросов
-size_t bytes_allocated;
-// сумма занятых байт
-size_t bytes_used;
-size_t block_counter;
-size_t max_block_count;
-size_t block_size_distribution[LARGE_BUFFER_SIZE + 1] = {0};
-#endif
+constexpr size_t LinkedListAllocator::F_hrader = sizeof(LinkedListAllocator::BlockHeader);
+constexpr size_t LinkedListAllocator::A_header = sizeof(size_t);
 
 LinkedListAllocator::LinkedListAllocator() {
-    buffer = static_cast<char*>(malloc(LARGE_BUFFER_SIZE));
-    // непрямое создание первого блока во весь буффер
-    // только в этом языке можно создать обьект без конструктора, лол
+    buffer = static_cast<char*>(malloc(LINKED_BUFFER_SIZE));
     root->prev = root->next = root = reinterpret_cast<BlockHeader*>(buffer);
-    root->size = LARGE_BUFFER_SIZE;
+    root->size = LINKED_BUFFER_SIZE;
 
 #if DEBUG
     bytes_allocated = 0;
     bytes_used = sizeof(BlockHeader);
     block_counter = max_block_count = 1;
-    block_size_distribution[LARGE_BUFFER_SIZE] = 1;
+    block_size_distribution[LINKED_BUFFER_SIZE] = 1;
 
     printf(
         "Linked List Allocator construction succesful\n\
 root: %p, buffer size: %d\n\n",
-        root, LARGE_BUFFER_SIZE);
+        root, LINKED_BUFFER_SIZE);
 #endif
 }
 
@@ -61,7 +54,7 @@ block distribution:\n",
         bytes_allocated, bytes_used,
         root->prev == root && root == root->next, block_counter, max_block_count);
 
-    for (size_t size = 0; size < LARGE_BUFFER_SIZE; ++size) {
+    for (size_t size = 0; size < LINKED_BUFFER_SIZE; ++size) {
         size_t count = block_size_distribution[size];
         if (count) {
             printf("size %lu blocks %lu\n", size, count);
@@ -104,7 +97,7 @@ char* LinkedListAllocator::allocate(size_t size) {
         printf(
             "No Block of sufficient size error\nBuffer size: %d\n\
                 last alloc request/last checked block capacity: %lu/%lu\n",
-            LARGE_BUFFER_SIZE, size, cur->size - A_header);
+            LINKED_BUFFER_SIZE, size, cur->size - A_header);
         throw std::bad_alloc();
     }
 
