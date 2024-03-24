@@ -7,47 +7,50 @@
 
 #include "../constants.hh"
 
-struct Buffer {
+struct PoolAllocator::Buffer {
     Buffer* prev = nullptr;
     size_t current = sizeof(Buffer);
     size_t size = 0;
 };
 
-Buffer* some_buffer = nullptr;
+// буффер должен принадлежать экземпляру аллокатора
+// несколько pool аллокаторов будут работать с одной переменной
+// и как some_buffer работал без метки static - для меня загадка
 
 PoolAllocator::PoolAllocator() {
     createNewBuffer(BUFFER_SIZE);
 }
 
 PoolAllocator::~PoolAllocator() {
-    while (some_buffer != nullptr) {
-        Buffer* prev = some_buffer->prev;
-        free(some_buffer);
-        some_buffer = prev;
+    while (buffer_list_head != nullptr) {
+        Buffer* prev = buffer_list_head->prev;
+        free(buffer_list_head);
+        buffer_list_head = prev;
     }
 }
 
 void PoolAllocator::createNewBuffer(size_t size) {
     Buffer* New = static_cast<Buffer*>(malloc(size + sizeof(Buffer)));
     new (New) Buffer();
-    New->prev = some_buffer;
+    New->prev = buffer_list_head;
     New->size = size + sizeof(Buffer);
-    some_buffer = New;
+    buffer_list_head = New;
 }
 
-char* PoolAllocator::allocate(size_t size) {
-    if (some_buffer->size - some_buffer->current < size) {
+char* PoolAllocator::allocate(std::size_t size) {
+    if (buffer_list_head->size - buffer_list_head->current < size) {
         if (BUFFER_SIZE >= (int)size) {
             createNewBuffer(BUFFER_SIZE);
         } else {
             createNewBuffer((int)size);
         }
-        // Была ошибка что std не содержит max... Проще ифом сделать, ифы работают всегда
-        // createNewBuffer(std::max(BUFFER_SIZE, (int)size));
+        // std::max Defined in header <algorithm>
+        // тернарный оператор - ещё один вариант
+        // createNewBuffer((size > BUFFER_SIZE) ? (size) : (Buffer));
     }
 
-    char* ret = reinterpret_cast<char*>(some_buffer) + some_buffer->current;
-    some_buffer->current = some_buffer->current + size;
+    char* ret = reinterpret_cast<char*>(buffer_list_head) + buffer_list_head->current;
+    buffer_list_head->current = buffer_list_head->current + size;
     return ret;
 }
 void PoolAllocator::deallocate(void*) {

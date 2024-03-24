@@ -145,7 +145,7 @@ void TextMapTest(Allocator* allocator, char* TextBuffer) {
 int main() {
     // TODO Если хотим работать через Cmake надо че-то делать, потому что cmake запускает программу в совей директории build где нет файла war_en.txt
     // Но каждый раз туда копировать файл как-то странно. Не знаю как решать пока.
-    char* ReadBuffer = ReadFromFile("war_en.txt");
+    char* ReadBuffer = ReadFromFile("../war_en.txt");
 
     PoolAllocator* poolAllocator = new PoolAllocator();
     auto start2 = std::chrono::high_resolution_clock::now();
