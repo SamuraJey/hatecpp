@@ -24,7 +24,7 @@ PoolAllocator::~PoolAllocator() {
     }
 }
 
-void PoolAllocator::createNewBuffer(std::size_t size) {
+void PoolAllocator::createNewBuffer(size_t size) {
     Buffer* New = static_cast<Buffer*>(malloc(size + sizeof(Buffer)));
     new (New) Buffer();  // placment new
     New->prev = buffer_list_head;
@@ -32,7 +32,7 @@ void PoolAllocator::createNewBuffer(std::size_t size) {
     buffer_list_head = New;
 }
 
-char* PoolAllocator::allocate(std::size_t size) {
+char* PoolAllocator::allocate(size_t size) {
     if (buffer_list_head->current + size > buffer_list_head->size) {
         if (POOL_BUFFER_SIZE >= size) {
             createNewBuffer(POOL_BUFFER_SIZE);

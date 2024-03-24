@@ -6,3 +6,6 @@ IndentCaseLabels: false
 ColumnLimit: 0
 DerivePointerAlignment: false
 PointerAlignment: Left
+BreakConstructorInitializersStyle: AfterColon
+SpaceBeforeCtorInitializerColon: false
+PackConstructorInitializers : Never

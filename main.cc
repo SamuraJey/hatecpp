@@ -9,10 +9,13 @@
 
 #include "Allocators/LinkedListAllocator.hh"
 #include "Allocators/PoolAllocator.hh"
-#include "constants.hh"  // Инклуд заголовка с константами типа BUFFER_SIZE и DEBUG
-// #define BUFFER_SIZE 1024
-// #define LINKED_BUFFER_SIZE 1024 * 1024 * 3
-// #define DEBUG 1
+#include "Allocators/STLAdapter.tpp"
+// Tеплейты удобнее всего целиком выключають в cpp, использующий его, чтобы при компиляции он инстансирование нужными типами.
+// Так можно было сделать и с .cpp файлами. Препроцессор просто слеплял бы их один translation unit, и компилировал как одно целое. Но это считается не best practice
+// Или пойти сложным путём:
+//  1) Создать темплейтный хедер. Включить его main (где я надеюсь он инстансируется автоматически) и .tpp
+//  2) В .tpp руками прописать инстансирование нужными аргументами (типами). Добавить .tpp в компиляцию
+#include "constants.hh"
 
 bool isDelim(char& c) {
     switch (c) {
@@ -37,33 +40,6 @@ bool isDelim(char& c) {
         return false;
     }
 }
-
-template <class T>
-class CMyAllocator {
-   public:
-    typedef T value_type;
-
-    Allocator* allocator = nullptr;
-
-    CMyAllocator() : allocator(nullptr) {
-    }
-
-    CMyAllocator(Allocator* ByteAllocator) {
-        allocator = ByteAllocator;
-    }
-
-    template <class U>
-    CMyAllocator(const CMyAllocator<U>& V) : allocator(V.allocator) {
-    }
-
-    T* allocate(size_t count) {
-        return reinterpret_cast<T*>(allocator->allocate(sizeof(T) * count));
-    }
-
-    void deallocate(T* p, size_t count) {
-        allocator->deallocate(p);
-    }
-};
 
 bool cmp(std::pair<const char*, size_t> First, std::pair<const char*, size_t> Second) {
     return First.second > Second.second;
@@ -117,8 +93,8 @@ char* ReadFromFile(const char* FileName) {
 }
 
 void TextMapTest(Allocator* allocator, char* TextBuffer) {
-    CMyAllocator<char*> WrapperAllocator(allocator);
-    std::map<const char*, size_t, CStringComparator, CMyAllocator<std::pair<const char* const, size_t>>> Map(WrapperAllocator);
+    STLAdapter<char*> WrapperAllocator(allocator);
+    std::map<const char*, size_t, CStringComparator, STLAdapter<std::pair<const char* const, size_t>>> Map(WrapperAllocator);
 
     char* Word = strtok(TextBuffer, " \n\t\r");
     while (Word != nullptr) {
