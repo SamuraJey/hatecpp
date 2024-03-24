@@ -11,10 +11,10 @@ class PoolAllocator : public Allocator {
     void deallocate(void*) override;
 
    private:
-    // декларация структуры в класе
-    // реализация прописыватеся в cpp через неймспейса класса, так же как и остальные поля
+    // Декларация структуры в классе
+    // Реализация прописыватеся в cpp через неймспейса класса, так же как и остальные поля
     struct Buffer;
-    Buffer* buffer_list_head;  // ссылка на список буфферов - поле. Каждого экземпляра аллокатора она своя
+    Buffer* buffer_list_head;  // Ссылка на список буферов - поле. Для каждого экземпляра аллокатора она своя
     void createNewBuffer(size_t size);
 };
 #endif  // POOLALLOCATOR_H

@@ -1,8 +1,7 @@
-#include <stdio.h>
-
 #include <algorithm>
 #include <chrono>
 #include <cstdint>
+#include <cstdio>
 #include <cstring>
 #include <iostream>
 #include <map>
@@ -76,8 +75,8 @@ class CStringComparator {
         A < B --> true
     */
     bool operator()(const char* A, const char* B) const {
-        // выход на первой отличающийся буквах
-        // или кода a = b ='\0' -> ret false
+        // Выход на первой отличающейся букве
+        // Или на коде терменирующего нуля a = b ='\0' -> ret false
         while (A[0] == B[0] && A[0]) {
             A++;
             B++;
@@ -101,7 +100,7 @@ char* ReadFromFile(const char* FileName) {
     char* ReadBuffer = static_cast<char*>(malloc(FileSize + 1));
     // printf("FileSize = %lld\n", FileSize);
 
-    // Добавил переменную принмающее значение fread, что бы не было warning
+    // Добавил переменную принимающую значение fread, что бы не было warning
     // И сделал проверку на количество реально считанных байт и размер файла
     size_t TotalBytesRead = fread(ReadBuffer, 1, FileSize, File);
     if (TotalBytesRead == (size_t)FileSize) {
@@ -143,8 +142,6 @@ void TextMapTest(Allocator* allocator, char* TextBuffer) {
 }
 
 int main() {
-    // TODO Если хотим работать через Cmake надо че-то делать, потому что cmake запускает программу в совей директории build где нет файла war_en.txt
-    // Но каждый раз туда копировать файл как-то странно. Не знаю как решать пока.
     char* ReadBuffer = ReadFromFile("../war_en.txt");
 
     PoolAllocator* poolAllocator = new PoolAllocator();

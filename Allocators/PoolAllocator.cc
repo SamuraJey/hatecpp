@@ -1,7 +1,6 @@
 #include "PoolAllocator.hh"
 
-#include <malloc.h>
-
+#include <cstdlib>
 #include <new>
 
 #include "../constants.hh"
@@ -35,7 +34,7 @@ void PoolAllocator::createNewBuffer(std::size_t size) {
 
 char* PoolAllocator::allocate(std::size_t size) {
     if (buffer_list_head->current + size > buffer_list_head->size) {
-        if (POOL_BUFFER_SIZE >= (int)size) {
+        if (POOL_BUFFER_SIZE >= size) {
             createNewBuffer(POOL_BUFFER_SIZE);
         } else {
             createNewBuffer(size);

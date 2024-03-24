@@ -1,4 +1,7 @@
 #pragma once
+#ifndef LINKEDLISTALLOCATOR_H
+#define LINKEDLISTALLOCATOR_H
+
 #include "../constants.hh"
 #include "Allocator.hh"
 
@@ -13,13 +16,13 @@ class LinkedListAllocator : public Allocator {
     char* buffer;
     struct BlockHeader;
     BlockHeader* root;
-    // алиасам в глобальном блоке видимости точно не место
+    // Алиасам в глобальном блоке видимости точно не место
     // Alias for Free header size
     static const size_t F_hrader;
     // Alias for Allocated header size
     static const size_t A_header;
     void remove_from_list(BlockHeader* rem);
-    // и к сожелению это тоже нужно сделать частью класса
+    // И к сожалению это тоже нужно сделать частью класса
 
 #if DEBUG
     // сумма байт всех запросов
@@ -31,3 +34,5 @@ class LinkedListAllocator : public Allocator {
     size_t block_size_distribution[LINKED_BUFFER_SIZE + 1] = {0};
 #endif
 };
+
+#endif  // LINKEDLISTALLOCATOR_H

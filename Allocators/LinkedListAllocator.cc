@@ -1,14 +1,11 @@
-
-
 #include "LinkedListAllocator.hh"
 
-#include <malloc.h>
-#include <stdio.h>
-
+#include <cstdio>
+#include <cstdlib>
 #include <exception>
 #include <new>
 
-#include "../constants.hh"  // Почему автоформатирование делает такой странный порядок инклудов...................
+#include "../constants.hh"
 
 struct LinkedListAllocator::BlockHeader {
     size_t size;
@@ -45,10 +42,10 @@ root: %p, buffer size: %d\n\n",
 LinkedListAllocator::~LinkedListAllocator() {
 #if DEBUG
     printf(
-        "Linked Aist Allocator decostructor log\n\
+        "Linked Aist Allocator destructor log\n\
 root: addr: %p, size: %lu\n\
 bytes left allocated: %lu, bytes left used: %lu\n\
-sinle block left? %d, block count: %lu, max block count: %lu\n\
+single block left? %d, block count: %lu, max block count: %lu\n\
 block distribution:\n",
         root, root->size,
         bytes_allocated, bytes_used,
@@ -69,11 +66,11 @@ void LinkedListAllocator::remove_from_list(BlockHeader* rem) {
     BlockHeader* next = rem->next;
     if (rem == root) {
         if (rem == next) {
-            // список из 1 удоляемого элемента - забываем
+            // Список из 1 удаляемого элемента - забываем
             root = nullptr;
             return;
         } else {
-            // потдержание доступа к списку
+            // Поддержание доступа к списку
             root = next;
         }
     }
@@ -101,7 +98,7 @@ char* LinkedListAllocator::allocate(size_t size) {
         throw std::bad_alloc();
     }
 
-    // от блока достаточного размера отрезаем новый блок требуемого размера
+    // От блока достаточного размера отрезаем новый блок требуемого размера
     if (cur->size >= size + F_hrader + A_header) {
         BlockHeader* cuted_block = reinterpret_cast<BlockHeader*>((char*)cur + cur->size - size - A_header);
 
@@ -121,7 +118,7 @@ char* LinkedListAllocator::allocate(size_t size) {
         remove_from_list(cur);
 
 #if DEBUG
-        // не совсем правдо зато без утечек
+        // Не совсем правда, зато без утечек
         bytes_allocated += cur->size - A_header;
         bytes_used += cur->size - F_hrader;
 #endif
@@ -131,9 +128,9 @@ char* LinkedListAllocator::allocate(size_t size) {
 }
 
 // Я конечно сделал, но нужно допиливать. Безбожно медленно + по логированию очищается не всё.
-// (вообще не понял почему он не бросает segmentation segmentation falts).
+// (вообще не понял почему он не бросает segmentation fault).
 void LinkedListAllocator::deallocate(void* ptr) {
-    //!!! p - адресс на начала данных, не блока
+    //!!! p - адрес на начала данных, не блока
     BlockHeader* to_free = reinterpret_cast<BlockHeader*>((char*)ptr - A_header);
 #if DEBUG
     bytes_allocated -= to_free->size - A_header;
@@ -144,7 +141,8 @@ void LinkedListAllocator::deallocate(void* ptr) {
     }
 
     BlockHeader *cur = root, *prev_free = nullptr, *next_free = nullptr;
-    do {  // запоминаем граничащие свободные блоки
+    do {
+        // Запоминаем граничащие свободные блоки
         if ((char*)cur + cur->size == (char*)to_free) {
             prev_free = cur;
         }
@@ -153,15 +151,17 @@ void LinkedListAllocator::deallocate(void* ptr) {
         }
     } while ((cur = cur->next) != root);
 
-    // далее обработка 4 случаев. (наличие/отсутствие)*(првого/левого) соседа для слияния
+    // Далее обработка 4 случаев. (наличие/отсутствие)*(правого/левого) соседа для слияния
     switch ((bool)prev_free << 1 | (bool)next_free) {
-    case 0:  // соседей нет => вставляем блок за корнем
+    // Случай 0: соседей нет => вставляем блок за корнем
+    case 0:
         (to_free->prev = root)->next = (to_free->next = root->next)->prev = to_free;
 #if DEBUG
         bytes_used -= to_free->size - F_hrader;
 #endif
         break;
-    case 1:  // только сосед справа => подменяем в списке соседа на себя и присоединяем его
+    // Случай 1: только сосед справа => подменяем в списке соседа на себя и присоединяем его
+    case 1:
         (to_free->prev = next_free->prev)->next = (to_free->next = next_free->next)->prev = to_free;
         to_free->size += next_free->size;
 
@@ -174,7 +174,8 @@ void LinkedListAllocator::deallocate(void* ptr) {
 #endif
 
         break;
-    case 2:  // только сосед слева => присоеденяемся к нему
+    // Случай 2: только сосед слева => присоеденяемся к нему
+    case 2:
         prev_free->size += to_free->size;
 
 #if DEBUG
@@ -186,7 +187,8 @@ void LinkedListAllocator::deallocate(void* ptr) {
 #endif
 
         break;
-    case 3:  // оба соседа => вырезаем правого и присоденяем себя и правого к левому
+    // Случай 3: оба соседа слева и справа => вырезаем правого и присоединяем себя и правого к левому
+    case 3:
         prev_free->size += to_free->size + next_free->size;
         remove_from_list(next_free);
 
