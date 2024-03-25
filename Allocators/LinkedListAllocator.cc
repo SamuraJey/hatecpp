@@ -35,7 +35,7 @@ LinkedListAllocator::LinkedListAllocator()
 
     printf(
         "Linked List Allocator construction succesful\n\
-root: %p, buffer size: %d\n\n",
+root: %p, buffer size: %lu\n\n",
         root, LINKED_BUFFER_SIZE);
 #endif
 }
@@ -93,7 +93,7 @@ char* LinkedListAllocator::allocate(size_t size) {
 
     if (cur->size < size + A_header) {
         printf(
-            "No Block of sufficient size error\nBuffer size: %d\n\
+            "No Block of sufficient size error\nBuffer size: %lu\n\
 last alloc request/last checked block capacity: %lu/%lu\n",
             LINKED_BUFFER_SIZE, size, cur->size - A_header);
         throw std::bad_alloc();
