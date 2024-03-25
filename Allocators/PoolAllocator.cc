@@ -48,5 +48,5 @@ char* PoolAllocator::allocate(size_t size) {
     buffer_list_head->current += size;
     return ret;
 }
-void PoolAllocator::deallocate(void*) {
+void PoolAllocator::deallocate(void* ptr) {
 }

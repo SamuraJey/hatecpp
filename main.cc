@@ -9,12 +9,8 @@
 
 #include "Allocators/LinkedListAllocator.hh"
 #include "Allocators/PoolAllocator.hh"
+#include "Allocators/ReferenceAllocator.hh"
 #include "Allocators/STLAdapter.tpp"
-// Tеплейты удобнее всего целиком выключають в cpp, использующий его, чтобы при компиляции он инстансирование нужными типами.
-// Так можно было сделать и с .cpp файлами. Препроцессор просто слеплял бы их один translation unit, и компилировал как одно целое. Но это считается не best practice
-// Или пойти сложным путём:
-//  1) Создать темплейтный хедер. Включить его main (где я надеюсь он инстансируется автоматически) и .tpp
-//  2) В .tpp руками прописать инстансирование нужными аргументами (типами). Добавить .tpp в компиляцию
 #include "constants.hh"
 
 bool isDelim(char& c) {
@@ -92,48 +88,59 @@ char* ReadFromFile(const char* FileName) {
     return ReadBuffer;
 }
 
-void TextMapTest(Allocator* allocator, char* TextBuffer) {
-    STLAdapter<char*> WrapperAllocator(allocator);
-    std::map<const char*, size_t, CStringComparator, STLAdapter<std::pair<const char* const, size_t>>> Map(WrapperAllocator);
+void TextMapTest(Allocator* allocator, const char* allocator_name, char* TextBuffer) {
+    // Занёс замер времени из main сюда.
+    // Плюсы: можно мерить время на аллокацию и деаллокацию раздельно, main чище
+    // Минусы: Для вывода логов, нужно передовать названия аллокаторов.
+    // Не знаю как получить чистое время аллокации. Сейчас основу первого времени занимает парсинг слов и логика мапы.
+    std::chrono::_V2::system_clock::time_point time_mark;
+    std::chrono::duration<double> alloc_time;
+    std::chrono::duration<double> dealloc_time;
+    {
+        STLAdapter<char*> WrapperAllocator(allocator);
+        std::map<const char*, size_t, CStringComparator, STLAdapter<std::pair<const char* const, size_t>>> Map(WrapperAllocator);
 
-    char* Word = strtok(TextBuffer, " \n\t\r");
-    while (Word != nullptr) {
-        Map[Word]++;
-        Word = strtok(nullptr, " \n\t\r");
+        time_mark = std::chrono::high_resolution_clock::now();
+        char* Word = strtok(TextBuffer, " \n\t\r");
+        while (Word != nullptr) {
+            Map[Word]++;
+            Word = strtok(nullptr, " \n\t\r");
+        }
+        alloc_time = std::chrono::high_resolution_clock::now() - time_mark;
+
+        std::vector<std::pair<const char*, int>> SortedWords(Map.begin(), Map.end());
+        std::sort(SortedWords.begin(), SortedWords.end(), cmp);
+        int i = 0;
+        int num_of_word = 0;
+        for (auto Pair : SortedWords) {
+            if (i++ < 50)
+                printf("%s: %d\n", Pair.first, Pair.second);
+            num_of_word += Pair.second;
+        }
+        printf("Total number of words: %d\n", num_of_word);
+
+        free(TextBuffer);
+        time_mark = std::chrono::high_resolution_clock::now();
+        // именно здесь разрушается Map и освобождается занятая ей память.
     }
+    dealloc_time = std::chrono::high_resolution_clock::now() - time_mark;
 
-    std::vector<std::pair<const char*, int>> SortedWords(Map.begin(), Map.end());
-    std::sort(SortedWords.begin(), SortedWords.end(), cmp);
-    int i = 0;
-    int num_of_word = 0;
-
-    for (auto Pair : SortedWords) {
-        if (i++ < 10)
-            printf("%s: %d\n", Pair.first, Pair.second);
-        num_of_word += Pair.second;
-    }
-    printf("Total number of words: %d\n", num_of_word);
-
-    free(TextBuffer);
+    printf("%s parsion time: %f sec, deallocation time: %f sec\n\n", allocator_name, alloc_time.count(), dealloc_time.count());
 }
 
 int main() {
     char* ReadBuffer = ReadFromFile("../war_en.txt");
 
+    ReferenceAllocator* referenceAllocator = new ReferenceAllocator();
+    TextMapTest(referenceAllocator, "Reference Allocator", strdup(ReadBuffer));
+    delete referenceAllocator;
+
     PoolAllocator* poolAllocator = new PoolAllocator();
-    auto start2 = std::chrono::high_resolution_clock::now();
-    TextMapTest(poolAllocator, strdup(ReadBuffer));
-    auto end2 = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> duration2 = end2 - start2;
-    printf("PoolAllocator execution time: %f seconds\n\n", duration2.count());
+    TextMapTest(poolAllocator, "Pool allocator", strdup(ReadBuffer));
     delete poolAllocator;
 
     LinkedListAllocator* linkedListAllocator = new LinkedListAllocator();
-    auto start1 = std::chrono::high_resolution_clock::now();
-    TextMapTest(linkedListAllocator, strdup(ReadBuffer));
-    auto end1 = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> duration1 = end1 - start1;
-    printf("LinkedListAllocator execution time: %f seconds\n\n", duration1.count());
+    TextMapTest(linkedListAllocator, "Linked list allocator", strdup(ReadBuffer));
     delete linkedListAllocator;
 
     free(ReadBuffer);
