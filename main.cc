@@ -113,7 +113,7 @@ void TextMapTest(Allocator* allocator, const char* allocator_name, char* TextBuf
         int i = 0;
         int num_of_word = 0;
         for (auto Pair : SortedWords) {
-            if (i++ < 50)
+            if (i++ < 10)
                 printf("%s: %d\n", Pair.first, Pair.second);
             num_of_word += Pair.second;
         }
