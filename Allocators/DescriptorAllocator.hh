@@ -14,13 +14,13 @@ class DescriptorAllocator : public Allocator {
    private:
     char* const buffer;
     struct Descriptor;
-    struct BlockHeader;
-    BlockHeader* root;
+    struct Header;
+    Header* root;
     // Alias for Free header size
-    static const size_t F_hrader;
+    static const size_t H_size;
     // Alias for Allocated header size
-    static const size_t A_header;
-    void remove_from_list(BlockHeader* rem);
+    static const size_t D_size;
+    void remove_from_list(Header* rem);
 
 #if DEBUG
     // сумма байт всех запросов

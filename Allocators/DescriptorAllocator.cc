@@ -7,41 +7,39 @@
 
 #include "../constants.hh"
 
-struct DescriptorAllocator::Descriptor{
-    size_t value;
-    inline size_t get_size() { return value & 0x7FFFFFFF; }
-    inline void set_size(size_t size) {value = value & 80000000 | size & 0x7FFFFFFF; }
-    inline void chenge_size(size_t len) {value += len;}
 
-    inline bool used() { return (bool)value >> 63; }
-    inline void set_used(bool used){value = (size_t)used << 63 | value & 0x7FFFFFFF;}
-    inline void switch_used(){value ^= 0x80000000;}
-}
+struct DescriptorAllocator::Descriptor {
+    size_t size : 63;
+    size_t used : 1;
+    Header* to_header(){
+        return reinterpret_cast<Header*>(this - size);
+    }
+    
+};
 
-
-struct DescriptorAllocator::BlockHeader {
-    size_t size;
+struct DescriptorAllocator::Header {
+    Descriptor front_descriptor;
     union {
         struct
         {
-            BlockHeader *prev, *next;
+            Header *prev, *next;
         };
         char data[1];
     };
 };
 
-constexpr size_t DescriptorAllocator::F_hrader = sizeof(DescriptorAllocator::BlockHeader);
-constexpr size_t DescriptorAllocator::A_header = sizeof(size_t);
+
+constexpr size_t DescriptorAllocator::H_size = sizeof(DescriptorAllocator::Header);
+constexpr size_t DescriptorAllocator::D_size = sizeof(DescriptorAllocator::Descriptor);
 
 DescriptorAllocator::DescriptorAllocator()
-    // Синтаксис для инициализации константных полей. см. Constructors and member initializer lists
     : buffer(static_cast<char*>(malloc(LINKED_BUFFER_SIZE))) {
-    root->prev = root->next = root = reinterpret_cast<BlockHeader*>(buffer);
+    root->prev = root->next = root = reinterpret_cast<Header*>(buffer);
     root->size = LINKED_BUFFER_SIZE;
 
 #if DEBUG
     bytes_allocated = 0;
-    max_bytes_used = bytes_used = F_hrader;
+    max_bytes_used = bytes_used = H_size;
     max_block_count = block_counter = 1;
     block_size_distribution[LINKED_BUFFER_SIZE] = 1;
 
@@ -74,9 +72,9 @@ block distribution:\n",
     free(buffer);
 }
 
-void DescriptorAllocator::remove_from_list(BlockHeader* rem) {
-    BlockHeader* prev = rem->prev;
-    BlockHeader* next = rem->next;
+void DescriptorAllocator::remove_from_list(Header* rem) {
+    Header* prev = rem->prev;
+    Header* next = rem->next;
     if (rem == root) {
         if (rem == next) {
             // Список из 1 удаляемого элемента - забываем
@@ -98,41 +96,41 @@ char* DescriptorAllocator::allocate(size_t size) {
         throw std::bad_alloc();
     }
 
-    BlockHeader* cur = root;
+    Header* cur = root;
     do {
         cur = cur->next;  // root - последний элемент итерации
-    } while (cur != root && cur->size < size + A_header);
+    } while (cur != root && cur->size < size + D_size);
 
-    if (cur->size < size + A_header) {
+    if (cur->size < size + D_size) {
         printf(
             "No Block of sufficient size error\nBuffer size: %d\n\
 last alloc request/last checked block capacity: %lu/%lu\n",
-            LINKED_BUFFER_SIZE, size, cur->size - A_header);
+            LINKED_BUFFER_SIZE, size, cur->size - D_size);
         throw std::bad_alloc();
     }
 
     // От блока достаточного размера отрезаем новый блок требуемого размера
-    if (cur->size >= (size + A_header) + F_hrader) {
-        BlockHeader* cuted_block = reinterpret_cast<BlockHeader*>(((char*)cur + cur->size) - (size + A_header));
+    if (cur->size >= (size + D_size) + H_size) {
+        Header* cuted_block = reinterpret_cast<Header*>(((char*)cur + cur->size) - (size + D_size));
 
 #if DEBUG
         bytes_allocated += size;
-        bytes_used += size + A_header;
+        bytes_used += size + D_size;
         ++block_counter;
         max_block_count = (block_counter > max_block_count) ? (block_counter) : (max_block_count);
         --block_size_distribution[cur->size];
-        ++block_size_distribution[(size + A_header)];
-        ++block_size_distribution[cur->size - (size + A_header)];
+        ++block_size_distribution[(size + D_size)];
+        ++block_size_distribution[cur->size - (size + D_size)];
 #endif
 
-        cur->size -= (cuted_block->size = size + A_header);
+        cur->size -= (cuted_block->size = size + D_size);
         return cuted_block->data;
     } else {
         remove_from_list(cur);
 
 #if DEBUG
-        bytes_allocated += cur->size - A_header;
-        bytes_used += cur->size - F_hrader;
+        bytes_allocated += cur->size - D_size;
+        bytes_used += cur->size - H_size;
         max_bytes_used = (bytes_used > max_bytes_used) ? (bytes_used) : (max_bytes_used);
 #endif
 
@@ -142,10 +140,10 @@ last alloc request/last checked block capacity: %lu/%lu\n",
 
 void DescriptorAllocator::deallocate(void* ptr) {
     //!!! p - адрес на начала данных, не блока
-    BlockHeader* to_free = reinterpret_cast<BlockHeader*>((char*)ptr - A_header);
+    Header* to_free = reinterpret_cast<Header*>((char*)ptr - D_size);
 #if DEBUG
-    bytes_allocated -= to_free->size - A_header;
-    bytes_used -= to_free->size - F_hrader;
+    bytes_allocated -= to_free->size - D_size;
+    bytes_used -= to_free->size - H_size;
     max_bytes_used = (bytes_used > max_bytes_used) ? (bytes_used) : (max_bytes_used);
 #endif
     if (root == nullptr) {
@@ -153,7 +151,7 @@ void DescriptorAllocator::deallocate(void* ptr) {
         return;
     }
 
-    BlockHeader *cur = root, *prev_free = nullptr, *next_free = nullptr;
+    Header *cur = root, *prev_free = nullptr, *next_free = nullptr;
     do {
         // Запоминаем граничащие свободные блоки
         if ((char*)cur + cur->size == (char*)to_free) {
@@ -175,7 +173,7 @@ void DescriptorAllocator::deallocate(void* ptr) {
         (to_free->prev = next_free->prev)->next = (to_free->next = next_free->next)->prev = to_free;
 
 #if DEBUG
-        bytes_used -= F_hrader;
+        bytes_used -= H_size;
         --block_counter;
         --block_size_distribution[to_free->size];
         --block_size_distribution[next_free->size];
@@ -186,7 +184,7 @@ void DescriptorAllocator::deallocate(void* ptr) {
     // Случай 2: только сосед слева => присоеденяемся к нему
     case 2:
 #if DEBUG
-        bytes_used -= F_hrader;
+        bytes_used -= H_size;
         --block_counter;
         --block_size_distribution[prev_free->size];
         --block_size_distribution[to_free->size];
@@ -199,7 +197,7 @@ void DescriptorAllocator::deallocate(void* ptr) {
     case 3:
         remove_from_list(next_free);
 #if DEBUG
-        bytes_used -= 2 * F_hrader;
+        bytes_used -= 2 * H_size;
         block_counter -= 2;
         --block_size_distribution[prev_free->size];
         --block_size_distribution[to_free->size];
