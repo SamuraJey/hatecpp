@@ -88,6 +88,25 @@ char* ReadFromFile(const char* FileName) {
     return ReadBuffer;
 }
 
+char* GetNextWord(char* textBuffer, const char* delimiters) {
+    char* start = textBuffer;
+    while (*start != '\0' && strchr(delimiters, *start) != nullptr) {
+        start++;
+    }
+    if (*start == '\0') {
+        return nullptr; // no more words
+    }
+    char* end = start;
+    while (*end != '\0' && strchr(delimiters, *end) == nullptr) {
+        end++;
+    }
+    if (*end != '\0') {
+        *end = '\0'; // terminate the word
+        end++;
+    }
+    return start;
+}
+
 void TextMapTest(Allocator* allocator, const char* allocator_name, char* TextBuffer) {
     // Занёс замер времени из main сюда.
     // Плюсы: можно мерить время на аллокацию и деаллокацию раздельно, main чище
@@ -101,10 +120,10 @@ void TextMapTest(Allocator* allocator, const char* allocator_name, char* TextBuf
         std::map<const char*, size_t, CStringComparator, STLAdapter<std::pair<const char* const, size_t>>> Map(WrapperAllocator);
 
         time_mark = std::chrono::high_resolution_clock::now();
-        char* Word = strtok(TextBuffer, " \n\t\r");
-        while (Word != nullptr) {
-            Map[Word]++;
-            Word = strtok(nullptr, " \n\t\r");
+        char* word = GetNextWord(TextBuffer, " \n\r\t");
+        while (word != nullptr) {
+            Map[word]++;
+            word = GetNextWord(word + strlen(word) + 1, " \n\r\t");
         }
         alloc_time = std::chrono::high_resolution_clock::now() - time_mark;
 
@@ -119,7 +138,7 @@ void TextMapTest(Allocator* allocator, const char* allocator_name, char* TextBuf
         }
         printf("Total number of words: %d\n", num_of_word);
 
-        free(TextBuffer);
+        // free(TextBuffer);
         time_mark = std::chrono::high_resolution_clock::now();
         // именно здесь разрушается Map и освобождается занятая ей память.
     }
@@ -132,15 +151,15 @@ int main() {
     char* ReadBuffer = ReadFromFile("../war_en.txt");
 
     ReferenceAllocator* referenceAllocator = new ReferenceAllocator();
-    TextMapTest(referenceAllocator, "Reference Allocator", strdup(ReadBuffer));
+    TextMapTest(referenceAllocator, "Reference Allocator", ReadBuffer);
     delete referenceAllocator;
 
     PoolAllocator* poolAllocator = new PoolAllocator();
-    TextMapTest(poolAllocator, "Pool allocator", strdup(ReadBuffer));
+    TextMapTest(poolAllocator, "Pool allocator", ReadBuffer);
     delete poolAllocator;
 
     LinkedListAllocator* linkedListAllocator = new LinkedListAllocator();
-    TextMapTest(linkedListAllocator, "Linked list allocator", strdup(ReadBuffer));
+    TextMapTest(linkedListAllocator, "Linked list allocator", ReadBuffer);
     delete linkedListAllocator;
 
     free(ReadBuffer);
