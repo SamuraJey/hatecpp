@@ -57,24 +57,27 @@ class CStringComparator {
     }
 };
 
-char* ReadFromFile(const char* FileName) {
+void ReadFromFile(const char* const FileName, const char* const delimiters, char*& BufferStart, char*& BufferEnd) {
+    // Пологаться на ноль в конце для определения размеров после токенезирования нельзя.
+    // Поэтому возвращаем ссылку на конец буфера
     FILE* File = fopen(FileName, "rb");
     if (File == nullptr) {
         printf("fopen\n");
         printf("Terminal failure: unable to open file \"%s\" for read.\n", FileName);
-        return nullptr;
+        BufferStart = nullptr;
+        BufferEnd = nullptr;
+        return;
     }
 
     fseek(File, 0, SEEK_END);
     long long FileSize = ftell(File);
     rewind(File);
 
-    char* ReadBuffer = static_cast<char*>(malloc(FileSize + 1));
-    // printf("FileSize = %lld\n", FileSize);
+    BufferStart = static_cast<char*>(malloc(FileSize + 1));
+    BufferEnd = BufferStart + FileSize;
 
-    // Добавил переменную принимающую значение fread, что бы не было warning
-    // И сделал проверку на количество реально считанных байт и размер файла
-    size_t TotalBytesRead = fread(ReadBuffer, 1, FileSize, File);
+    size_t TotalBytesRead = fread(BufferStart, 1, FileSize, File);
+    fclose(File);
     if (TotalBytesRead == (size_t)FileSize) {
         printf("TotalBytesRead and FileSize are the same: %lu\n\n", TotalBytesRead);
     } else {
@@ -82,36 +85,40 @@ char* ReadFromFile(const char* FileName) {
         printf("TotalBytesRead = %lu and FileSize = %lld\n\n", TotalBytesRead, FileSize);
     }
 
-    ReadBuffer[FileSize] = '\0';
-    fclose(File);
-
-    return ReadBuffer;
+    // заменяем разделительные символы нулями
+    char* iter = BufferStart;
+    while (iter != BufferEnd) {
+        if (strchr(delimiters, *iter)) {
+            *iter = '\0';
+        }
+        iter++;
+    }
+    *BufferEnd = '\0';
+    return;
 }
 
-char* GetNextWord(char* textBuffer, const char* delimiters) {
-    char* start = textBuffer;
-    while (*start != '\0' && strchr(delimiters, *start) != nullptr) {
-        start++;
+const char* GetNextWord(const char*& iter, const char* const BufferEnd) {
+    // !! функция выходила за C строку если после последнего слова не было резделительных знаков, а только терменирующий ноль буффер.
+    // добовляя нули после каждого слова, не получится определить конец буффера по такому же нулю. (со второго прохода)
+
+    // итерируемся через разделители
+    while (iter != BufferEnd && *iter == '\0') {
+        iter++;
     }
-    if (*start == '\0') {
-        return nullptr; // no more words
+    if (iter == BufferEnd) {
+        return nullptr;  // no more words конец буффера
     }
-    char* end = start;
-    while (*end != '\0' && strchr(delimiters, *end) == nullptr) {
-        end++;
+    // запоминаем начало слова в word
+    const char* word = iter;
+    // итерируемся по слову
+    while (iter != BufferEnd && *iter) {
+        iter++;
     }
-    if (*end != '\0') {
-        *end = '\0'; // terminate the word
-        end++;
-    }
-    return start;
+
+    return word;
 }
 
-void TextMapTest(Allocator* allocator, const char* allocator_name, char* TextBuffer) {
-    // Занёс замер времени из main сюда.
-    // Плюсы: можно мерить время на аллокацию и деаллокацию раздельно, main чище
-    // Минусы: Для вывода логов, нужно передовать названия аллокаторов.
-    // Не знаю как получить чистое время аллокации. Сейчас основу первого времени занимает парсинг слов и логика мапы.
+void TextMapTest(Allocator* allocator, const char* allocator_name, const char* const BufferStart, const char* const BufferEND) {
     std::chrono::_V2::system_clock::time_point time_mark;
     std::chrono::duration<double> alloc_time;
     std::chrono::duration<double> dealloc_time;
@@ -120,10 +127,10 @@ void TextMapTest(Allocator* allocator, const char* allocator_name, char* TextBuf
         std::map<const char*, size_t, CStringComparator, STLAdapter<std::pair<const char* const, size_t>>> Map(WrapperAllocator);
 
         time_mark = std::chrono::high_resolution_clock::now();
-        char* word = GetNextWord(TextBuffer, " \n\r\t");
-        while (word != nullptr) {
+        const char* iter = BufferStart;
+        const char* word;
+        while (word = GetNextWord(iter, BufferEND)) {  // не нулевая ссылка кастуется к true
             Map[word]++;
-            word = GetNextWord(word + strlen(word) + 1, " \n\r\t");
         }
         alloc_time = std::chrono::high_resolution_clock::now() - time_mark;
 
@@ -148,18 +155,19 @@ void TextMapTest(Allocator* allocator, const char* allocator_name, char* TextBuf
 }
 
 int main() {
-    char* ReadBuffer = ReadFromFile("../war_en.txt");
+    char *ReadBuffer, *BufferEnd;
+    ReadFromFile("../war_en.txt", " \n\r\t", ReadBuffer, BufferEnd);
 
     ReferenceAllocator* referenceAllocator = new ReferenceAllocator();
-    TextMapTest(referenceAllocator, "Reference Allocator", ReadBuffer);
+    TextMapTest(referenceAllocator, "Reference Allocator", ReadBuffer, BufferEnd);
     delete referenceAllocator;
 
     PoolAllocator* poolAllocator = new PoolAllocator();
-    TextMapTest(poolAllocator, "Pool allocator", ReadBuffer);
+    TextMapTest(poolAllocator, "Pool allocator", ReadBuffer, BufferEnd);
     delete poolAllocator;
 
     LinkedListAllocator* linkedListAllocator = new LinkedListAllocator();
-    TextMapTest(linkedListAllocator, "Linked list allocator", ReadBuffer);
+    TextMapTest(linkedListAllocator, "Linked list allocator", ReadBuffer, BufferEnd);
     delete linkedListAllocator;
 
     free(ReadBuffer);
