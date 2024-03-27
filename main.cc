@@ -89,24 +89,19 @@ char* ReadFromFile(const char* FileName) {
 }
 
 void TextMapTest(Allocator* allocator, const char* allocator_name, char* TextBuffer) {
-    // Занёс замер времени из main сюда.
-    // Плюсы: можно мерить время на аллокацию и деаллокацию раздельно, main чище
-    // Минусы: Для вывода логов, нужно передовать названия аллокаторов.
-    // Не знаю как получить чистое время аллокации. Сейчас основу первого времени занимает парсинг слов и логика мапы.
-    std::chrono::_V2::system_clock::time_point time_mark;
-    std::chrono::duration<double> alloc_time;
-    std::chrono::duration<double> dealloc_time;
-    {
-        STLAdapter<char*> WrapperAllocator(allocator);
-        std::map<const char*, size_t, CStringComparator, STLAdapter<std::pair<const char* const, size_t>>> Map(WrapperAllocator);
+    std::chrono::_V2::system_clock::time_point alloc_start, dealloc_start;
+    std::chrono::duration<double> alloc_time, dealloc_time, total_time;
+    STLAdapter<char*> WrapperAllocator(allocator);
 
-        time_mark = std::chrono::high_resolution_clock::now();
+    {
+        std::map<const char*, size_t, CStringComparator, STLAdapter<std::pair<const char* const, size_t>>> Map(WrapperAllocator);
+        alloc_start = std::chrono::high_resolution_clock::now();
         char* Word = strtok(TextBuffer, " \n\t\r");
         while (Word != nullptr) {
             Map[Word]++;
             Word = strtok(nullptr, " \n\t\r");
         }
-        alloc_time = std::chrono::high_resolution_clock::now() - time_mark;
+        alloc_time = std::chrono::high_resolution_clock::now() - alloc_start;
 
         std::vector<std::pair<const char*, int>> SortedWords(Map.begin(), Map.end());
         std::sort(SortedWords.begin(), SortedWords.end(), cmp);
@@ -120,12 +115,12 @@ void TextMapTest(Allocator* allocator, const char* allocator_name, char* TextBuf
         printf("Total number of words: %d\n", num_of_word);
 
         free(TextBuffer);
-        time_mark = std::chrono::high_resolution_clock::now();
-        // именно здесь разрушается Map и освобождается занятая ей память.
-    }
-    dealloc_time = std::chrono::high_resolution_clock::now() - time_mark;
+        dealloc_start = std::chrono::high_resolution_clock::now();
+    }  // именно здесь разрушается Map и освобождается занятая ей память.
+    dealloc_time = std::chrono::high_resolution_clock::now() - dealloc_start;
+    total_time = std::chrono::high_resolution_clock::now() - alloc_start;
 
-    printf("%s parsion time: %f sec, deallocation time: %f sec\n\n", allocator_name, alloc_time.count(), dealloc_time.count());
+    printf("\n%s total time: %f\nparsing time: %f sec, deallocation time: %f sec\n\n", allocator_name, total_time.count(), alloc_time.count(), dealloc_time.count());
 }
 
 int main() {
