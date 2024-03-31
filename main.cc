@@ -9,6 +9,7 @@
 #include "Allocators/STLAdapter.tpp"
 #include "File_Reading.cc"
 #include "constants.hh"
+#include "TextContainer.hh"
 
 bool cmp(std::pair<const char*, size_t> First, std::pair<const char*, size_t> Second) {
     return First.second > Second.second;
@@ -30,7 +31,7 @@ class CStringComparator {
     }
 };
 
-void TextMapTest(Allocator* allocator, const char* allocator_name, Text_Container text) {
+void TextMapTest(Allocator* allocator, const char* allocator_name, TextContainer text) {
     std::chrono::_V2::system_clock::time_point time_mark;
     std::chrono::duration<double> alloc_time;
     std::chrono::duration<double> dealloc_time;
@@ -66,7 +67,7 @@ void TextMapTest(Allocator* allocator, const char* allocator_name, Text_Containe
 
 int main() {
     char* ReadBuffer = ReadFromFile("../war_en.txt");
-    Text_Container text_container(ReadBuffer);
+    TextContainer text_container(ReadBuffer);
 
     ReferenceAllocator* referenceAllocator = new ReferenceAllocator();
     TextMapTest(referenceAllocator, "Reference Allocator", text_container);

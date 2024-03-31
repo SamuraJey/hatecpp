@@ -6,4 +6,5 @@ add_executable(allocators
     main.cc
     Allocators/PoolAllocator.cc
     Allocators/LinkedListAllocator.cc
+    TextContainer.cc
     )

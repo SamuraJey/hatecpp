@@ -34,95 +34,97 @@ char* const ReadFromFile(const char* FileName) {
     return FileBuffer;
 }
 
-// контейнер, для хранения, токинезации, и многократного чтения текста.
-class Text_Container {
-    // обьявление членов класса (пометка для компилятора о существовании таких символов)
-    const char *iter, *const start, *const end;
-    // const char* iter             изменяемый указатель на неизменяемый символ
-    // const cahr* const start\end  неизменяемые указатели на неизменяемые символы
-    // Note обьявление константы можно и без инициализации
+// // контейнер, для хранения, токинезации, и многократного чтения текста.
+// class TextContainer {
+//     // обьявление членов класса (пометка для компилятора о существовании таких символов)
+//     const char* iter;
+//     const char* const start;
+//     const char* const end;
+//     // const char* iter             изменяемый указатель на неизменяемый символ
+//     // const cahr* const start\end  неизменяемые указатели на неизменяемые символы
+//     // Note обьявление константы можно и без инициализации
 
-   public:
-    // Определять константы можно только вместе с одновременной инициализацией. const int a = 5; //ok
-    // Нужно успеть записать желаемые данные потому, что после определения константы, компилятор забирёт возможность неё изменять. const int a; a = 5; //error
+//    public:
+//     // Определять константы можно только вместе с одновременной инициализацией. const int a = 5; //ok
+//     // Нужно успеть записать желаемые данные потому, что после определения константы, компилятор забирёт возможность неё изменять. const int a; a = 5; //error
 
-    // Обьявленные (все) поля класса определяются (начинаютс существовать) в момент вызова конструктора.
-    // Это происходит не явно (под капотом) ещё до входа в тело конструктора.
+//     // Обьявленные (все) поля класса определяются (начинаютс существовать) в момент вызова конструктора.
+//     // Это происходит не явно (под капотом) ещё до входа в тело конструктора.
 
-    // Для константных полей классов, имеющих неявное определение, инициализация происходит с помощью  member initializer list.
-    // Он пишется через ":" ещё до тела конструктора, в момент, обычно, не явного определения членов.
-    inline explicit Text_Container(char* const Buffer, bool (*isDelim)(const char c) = default_delimeters) noexcept
-        : start(Buffer),
-          end(tokenize(Buffer, isDelim)) {
-        // не константное поле можно инициалезирывать пост фактум, независимо от определения.
-        iter = start;
-    }
+//     // Для константных полей классов, имеющих неявное определение, инициализация происходит с помощью  member initializer list.
+//     // Он пишется через ":" ещё до тела конструктора, в момент, обычно, не явного определения членов.
+//     inline explicit TextContainer(char* const Buffer, bool (*isDelim)(const char c) = default_delimeters) noexcept
+//         : start(Buffer),
+//           end(tokenize(Buffer, isDelim)) {
+//         // не константное поле можно инициалезирывать пост фактум, независимо от определения.
+//         iter = start;
+//     }
 
-    // Конструктор копирования для создания контейнеров с тем же текстом (на том же буфере) и со сброшенным итератором слов.
-    // Используется при передаче экземпляра класса как аргумента функции, внутри которой будет уже копия.
-    inline Text_Container(Text_Container& src) noexcept
-        : start(src.start),
-          end(src.end) {
-        iter = src.start;
-    }
+//     // Конструктор копирования для создания контейнеров с тем же текстом (на том же буфере) и со сброшенным итератором слов.
+//     // Используется при передаче экземпляра класса как аргумента функции, внутри которой будет уже копия.
+//     inline TextContainer(TextContainer& src) noexcept
+//         : start(src.start),
+//           end(src.end) {
+//         iter = src.start;
+//     }
 
-    const char* const GetNextWord() {
-        while (*iter == '\0' && iter != end) {
-            iter++;
-        }
-        // начале слова или конеце буфера
+//     const char* const GetNextWord() {
+//         while (*iter == '\0' && iter != end) {
+//             iter++;
+//         }
+//         // начале слова или конеце буфера
 
-        if (iter == end) {
-            // конец буффера
-            return nullptr;
-        }
+//         if (iter == end) {
+//             // конец буффера
+//             return nullptr;
+//         }
 
-        const char* const word = iter;
-        while (*iter != '\0' && iter != end) {
-            iter++;
-        }
-        // конце слова или конеце буфера
-        // anyway возврощаем найденое слово
-        return word;
-    }
+//         const char* const word = iter;
+//         while (*iter != '\0' && iter != end) {
+//             iter++;
+//         }
+//         // конце слова или конеце буфера
+//         // anyway возврощаем найденое слово
+//         return word;
+//     }
 
-    inline void reset() noexcept {
-        iter = start;
-    }
+//     inline void reset() noexcept {
+//         iter = start;
+//     }
 
-   private:
-    inline static bool default_delimeters(const char c) noexcept {
-        switch (c) {
-        case ' ':
-        case '\n':
-        case '.':
-        case ',':
-        case '!':
-        case '-':
-        case ';':
-        case ':':
-        case '?':
-        case '"':
-        case '\'':
-        case '(':
-        case ')':
-        case '[':
-        case ']':
-        case '/':
-            return true;
-        default:
-            return false;
-        }
-    }
+//    private:
+//     inline static bool default_delimeters(const char c) noexcept {
+//         switch (c) {
+//         case ' ':
+//         case '\n':
+//         case '.':
+//         case ',':
+//         case '!':
+//         case '-':
+//         case ';':
+//         case ':':
+//         case '?':
+//         case '"':
+//         case '\'':
+//         case '(':
+//         case ')':
+//         case '[':
+//         case ']':
+//         case '/':
+//             return true;
+//         default:
+//             return false;
+//         }
+//     }
 
-    static char* const tokenize(char* const Buffer, bool (*isDelimeter)(const char c)) noexcept {
-        char* iter = Buffer;
-        while (*iter != '\0') {
-            if (isDelimeter(*iter)) {
-                *iter = '\0';
-            }
-            ++iter;
-        }
-        return iter;  // указывает на конец буфера
-    }
-};
+//     static char* const tokenize(char* const Buffer, bool (*isDelimeter)(const char c)) noexcept {
+//         char* iter = Buffer;
+//         while (*iter != '\0') {
+//             if (isDelimeter(*iter)) {
+//                 *iter = '\0';
+//             }
+//             ++iter;
+//         }
+//         return iter;  // указывает на конец буфера
+//     }
+// };
