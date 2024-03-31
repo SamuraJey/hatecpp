@@ -8,6 +8,11 @@ TextContainer::TextContainer(char* const Buffer, bool (*isDelim)(const char c)) 
     iter = start;
 }
 
+// Вместо аргумента по умолчанию я перегрузил конструктор. И использовал паттерн delegating constructor ради флекса.
+TextContainer::TextContainer(char* const Buffer) noexcept
+    : TextContainer(Buffer, default_delimeters) {
+}
+
 // Конструктор копирования для создания контейнеров с тем же текстом (на том же буфере) и со сброшенным итератором слов.
 // Используется при передаче экземпляра класса как аргумента функции, внутри которой будет уже копия.
 TextContainer::TextContainer(TextContainer& src) noexcept
@@ -36,14 +41,18 @@ const char* const TextContainer::GetNextWord() {
     return word;
 }
 
-void TextContainer::reset() noexcept {
-    iter = start;
-}
-
-bool TextContainer::default_delimeters(const char c) noexcept {
+// Эта функция может выглядить грамоздко, но состоит всего из 1~2 операций и многократно вызывается в tokenize - отличный кондидат для inline
+// Однако вписывать такую колбасу в хедер - стрёмно. Но это и не нужно!
+// Определение inline функций должно быть в каждй еденице трансляции, использующей её.
+// default_delimeters помечена как private и используется только, здесь, в файле, в котором её определение присудствует.
+// Под словоим использование, однако, подразумевается не только вызовы, но и передачи ссылки на функцию.
+// Потому пришлось убрать её из умолчания аргумента в конструкторе.
+// Конструктор вызываясь в main.cс и использовал ссылку на default_delimeters, несмотря на то, что прописаны умолчания были в этом файле.
+inline bool TextContainer::default_delimeters(const char c) noexcept {
     switch (c) {
     case ' ':
     case '\n':
+    case '\r':  // ошибка была только из-за этого символа.
     case '.':
     case ',':
     case '!':

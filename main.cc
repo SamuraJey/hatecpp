@@ -8,8 +8,8 @@
 #include "Allocators/ReferenceAllocator.hh"
 #include "Allocators/STLAdapter.tpp"
 #include "File_Reading.cc"
-#include "constants.hh"
 #include "TextContainer.hh"
+#include "constants.hh"
 
 bool cmp(std::pair<const char*, size_t> First, std::pair<const char*, size_t> Second) {
     return First.second > Second.second;
@@ -62,7 +62,7 @@ void TextMapTest(Allocator* allocator, const char* allocator_name, TextContainer
     }
     dealloc_time = std::chrono::high_resolution_clock::now() - time_mark;
 
-    printf("%s parsion time: %f sec, deallocation time: %f sec\n\n", allocator_name, alloc_time.count(), dealloc_time.count());
+    printf("%s counting time: %f sec, deallocation time: %f sec\n\n", allocator_name, alloc_time.count(), dealloc_time.count());
 }
 
 int main() {
