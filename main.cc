@@ -10,6 +10,7 @@
 #include "File_Reading.cc"
 #include "TextContainer.hh"
 #include "constants.hh"
+#include "Allocators/DescriptorAllocator.cc"
 
 bool cmp(std::pair<const char*, size_t> First, std::pair<const char*, size_t> Second) {
     return First.second > Second.second;
@@ -80,6 +81,10 @@ int main() {
     LinkedListAllocator* linkedListAllocator = new LinkedListAllocator();
     TextMapTest(linkedListAllocator, "Linked list allocator", text_container);
     delete linkedListAllocator;
+
+    DescriptorAllocator* descriptorAllocator = new DescriptorAllocator();
+    TextMapTest(descriptorAllocator, "Descriptor allocator", text_container);
+    delete descriptorAllocator;
 
     free(ReadBuffer);
     return 0;
