@@ -4,24 +4,24 @@
 #include "Allocator.hh"
 
 class DescriptorAllocator : public Allocator {
-   private:
-    struct BlockHeader;
-    struct Descriptor;
-    char* buffer;
-    BlockHeader* root;
-    char* endBuffer;
-
    public:
     DescriptorAllocator();
-
-    void remove(BlockHeader* cur);
-
-    void insert(BlockHeader* newBlock);
-
+    // Add destructor for memory deallocation
     char* allocate(size_t size) override;
-
     void deallocate(void* ptr) override;
 
     void check_memory();
+
+   private:
+    struct BlockHeader;
+    struct Descriptor;
+    // Менять ссылку на буфер мы не захотим.
+    // С пометкой константы писать логику безопастнее.
+    char* const buffer;
+    char* const endBuffer;
+    BlockHeader* root;
+    // Maybe add aliases for sizes, but it isn't esential
+    void mark_used(BlockHeader* cur);
+    void mark_unused(BlockHeader* newBlock);
 };
 #endif  // DESCRIPTOR_ALLOCATOR_H
