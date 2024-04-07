@@ -97,21 +97,7 @@ last alloc request/last checked block capacity: %lu/%lu\n",
 
     // От блока достаточного размера будем отрезать кусок требуемого размера
     size_t spare_space = cur->size - min_req_size;
-    if (spare_space >= free_header) {
-#if DEBUG
-        bytes_allocated += size;
-        bytes_used += min_req_size;
-        ++block_counter;
-        max_block_count = (block_counter > max_block_count) ? (block_counter) : (max_block_count);
-        --block_size_distribution[cur->size];
-        ++block_size_distribution[min_req_size];
-        ++block_size_distribution[spare_space];
-#endif
-        BlockHeader* cuted_block = reinterpret_cast<BlockHeader*>((char*)cur + spare_space);
-        cur->size = spare_space;
-        cuted_block->size = min_req_size;
-        return cuted_block->data;
-    } else {
+    if (spare_space < free_header) {
 #if DEBUG
         bytes_allocated += cur->size - alloc_header;
         bytes_used += cur->size - free_header;
@@ -120,6 +106,20 @@ last alloc request/last checked block capacity: %lu/%lu\n",
         mark_used(cur);
         return cur->data;
     }
+
+#if DEBUG
+    bytes_allocated += size;
+    bytes_used += min_req_size;
+    ++block_counter;
+    max_block_count = (block_counter > max_block_count) ? (block_counter) : (max_block_count);
+    --block_size_distribution[cur->size];
+    ++block_size_distribution[min_req_size];
+    ++block_size_distribution[spare_space];
+#endif
+    BlockHeader* cuted_block = reinterpret_cast<BlockHeader*>((char*)cur + spare_space);
+    cur->size = spare_space;
+    cuted_block->size = min_req_size;
+    return cuted_block->data;
 }
 
 void LinkedListAllocator::deallocate(void* ptr) {

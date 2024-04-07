@@ -19,7 +19,7 @@ class LinkedListAllocator : public Allocator {
     static const size_t free_header;
     // Alias for Allocated header size
     static const size_t alloc_header;
-    void mark_used(BlockHeader* rem);
+    void mark_used(BlockHeader* block);
 
 #if DEBUG
     // сумма байт всех запросов

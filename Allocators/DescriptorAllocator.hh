@@ -6,7 +6,7 @@
 class DescriptorAllocator : public Allocator {
    public:
     DescriptorAllocator();
-    // Add destructor for memory deallocation
+    ~DescriptorAllocator();
     char* allocate(size_t size) override;
     void deallocate(void* ptr) override;
 

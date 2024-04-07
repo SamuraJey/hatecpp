@@ -24,6 +24,14 @@ struct DescriptorAllocator::BlockHeader {
     Descriptor* getRightDescriptor() {
         return (Descriptor*)((char*)this + descriptor.block_size - sizeof(Descriptor));
     }
+
+    // синхронно меняет размер дескриптолров блока и возвращает ссылку на правый (для других махинаций если нужно)
+    DescriptorAllocator::Descriptor* sync_size_set(size_t size) {
+        descriptor.block_size = size;
+        Descriptor* linked_disk = (Descriptor*)((char*)this + size - sizeof(Descriptor));
+        linked_disk->block_size = size;
+        return linked_disk;
+    }
 };
 
 DescriptorAllocator::DescriptorAllocator()
@@ -41,49 +49,49 @@ DescriptorAllocator::DescriptorAllocator()
     root->prev = root->next = root;
 }
 
-void DescriptorAllocator::mark_used(BlockHeader* cur) {
-    cur->descriptor.free = false;
-    cur->getRightDescriptor()->free = false;
-    if (cur == cur->next) {
+DescriptorAllocator::~DescriptorAllocator() {
+    check_memory();
+    free(buffer);
+}
+
+void DescriptorAllocator::mark_used(BlockHeader* block) {
+    block->descriptor.free = false;
+    block->getRightDescriptor()->free = false;
+    BlockHeader* prev = block->prev;
+    BlockHeader* next = block->next;
+    if (block == root && block == (root = next)) {
+        // Если удоляемый элемент в списке единственный, вырезать его не получится.
+        // Затираем ссылку на такой список.
         root = nullptr;
         return;
     }
-    BlockHeader* prev = cur->prev;
-    BlockHeader* next = cur->next;
     prev->next = next;
     next->prev = prev;
-    if (root == cur) {
-        root = next;
-    }
+    return;
 }
 
-void DescriptorAllocator::mark_free(BlockHeader* newBlock) {
-    newBlock->descriptor.free = true;
-    newBlock->getRightDescriptor()->free = true;
+void DescriptorAllocator::mark_free(BlockHeader* block) {
+    block->descriptor.free = true;
+    block->getRightDescriptor()->free = true;
     if (root == nullptr) {
-        newBlock->prev = newBlock->next = newBlock;
-        root = newBlock;
+        root = block->prev = block->next = block;
+        root = block;
         return;
     }
-    (newBlock->prev = root->prev)->next = newBlock;
-    (newBlock->next = root)->prev = newBlock;
+    (block->prev = root->prev)->next = block;
+    (block->next = root)->prev = block;
+    return;
 }
 
 char* DescriptorAllocator::allocate(size_t size) {
     if (root == nullptr) {
         throw std::bad_alloc();
     }
-    BlockHeader* cur = root;
     size_t min_req_size = size + 2 * sizeof(Descriptor);
-    do {
-        if (cur->descriptor.block_size >= min_req_size) {
-            break;
-        }
-        cur = cur->next;
-        if (cur == root) {
-            break;
-        }
-    } while (true);
+
+    BlockHeader* cur = root;
+    while (cur->descriptor.block_size < min_req_size && (cur = cur->next) != root) {
+    }
     if (cur->descriptor.block_size < min_req_size) {
         throw std::bad_alloc();
     }
@@ -130,10 +138,10 @@ void DescriptorAllocator::deallocate(void* data) {
         (mid_block->prev = right_block->prev)->next = mid_block;
         (mid_block->next = right_block->next)->prev = mid_block;
 
-        mid_block->descriptor.free = true;
-
         mid_block->descriptor.block_size += rightDescriptor->block_size;
         mid_block->getRightDescriptor()->block_size = mid_block->descriptor.block_size;
+
+        mid_block->descriptor.free = true;
         break;
 
     // Случай 2: только сосед слева => присоеденяемся к нему
@@ -142,6 +150,8 @@ void DescriptorAllocator::deallocate(void* data) {
 
         left_block->descriptor.block_size += mid_block->descriptor.block_size;
         left_block->getRightDescriptor()->block_size = left_block->descriptor.block_size;
+
+        left_block->getRightDescriptor()->free = true;
         break;
 
     // Случай 3: оба соседа слева и справа => вырезаем правого и присоединяем себя и правого к левому
