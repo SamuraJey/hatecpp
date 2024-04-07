@@ -38,6 +38,7 @@ DescriptorAllocator::DescriptorAllocator()
     root->prev = root->next = root;
 }
 
+
 void DescriptorAllocator::mark_used(BlockHeader* cur) {
     cur->descriptor.free = 0;
     cur->getRightDescriptor()->free = 0;
@@ -71,24 +72,24 @@ char* DescriptorAllocator::allocate(size_t size) {
         throw std::bad_alloc();
     }
     BlockHeader* cur = root;
-    size_t searchSize = size + sizeof(Descriptor) * 2;
-    while (true) {
-        if (cur->descriptor.block_size >= searchSize) {
+    size_t min_req_size = size + sizeof(Descriptor) * 2;
+    do {
+        if (cur->descriptor.block_size >= min_req_size) {
             break;
         }
         cur = cur->next;
         if (cur == root) {
             break;
         }
-    }
-    if (cur->descriptor.block_size < searchSize) {
+    } while (true);
+    if (cur->descriptor.block_size < min_req_size) {
         throw std::bad_alloc();
     }
 
     // Не надо вырезать блок и сразу после добавлять другой.
     // Или подменить в списке первый вторым
     // или вовсе не делать ничего: отдовать отрезанную часть, а первую половину оставить в покое (в списке свободных)
-    size_t freeSpace = cur->descriptor.block_size - searchSize;
+    size_t freeSpace = cur->descriptor.block_size - min_req_size;
     // пустой блок не меньше sizeof(BlockHeader) + sizeof(Descriptor)
     if (freeSpace < sizeof(BlockHeader) + sizeof(Descriptor)) {
         mark_used(cur);
@@ -101,8 +102,8 @@ char* DescriptorAllocator::allocate(size_t size) {
     cur->getRightDescriptor()->free = 1;
 
     BlockHeader* newBlock = (BlockHeader*)((char*)cur + freeSpace);
-    newBlock->descriptor.block_size = searchSize;
-    newBlock->getRightDescriptor()->block_size = searchSize;
+    newBlock->descriptor.block_size = min_req_size;
+    newBlock->getRightDescriptor()->block_size = min_req_size;
     newBlock->descriptor.free = 0;
     newBlock->getRightDescriptor()->free = 0;
     return newBlock->data;

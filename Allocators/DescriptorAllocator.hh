@@ -20,8 +20,9 @@ class DescriptorAllocator : public Allocator {
     char* const buffer;
     char* const endBuffer;
     BlockHeader* root;
-    // Maybe add aliases for sizes, but it isn't esential
+    //mark block used and remove from free list
     void mark_used(BlockHeader* cur);
+    //mark block unsude and add it to free list before root
     void mark_unused(BlockHeader* newBlock);
 };
 #endif  // DESCRIPTOR_ALLOCATOR_H

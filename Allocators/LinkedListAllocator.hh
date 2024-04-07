@@ -16,9 +16,9 @@ class LinkedListAllocator : public Allocator {
     char* const buffer;
     BlockHeader* root;
     // Alias for Free header size
-    static const size_t F_header;
+    static const size_t free_header;
     // Alias for Allocated header size
-    static const size_t A_header;
+    static const size_t alloc_header;
     void mark_used(BlockHeader* rem);
 
 #if DEBUG
