@@ -20,9 +20,11 @@ class DescriptorAllocator : public Allocator {
     char* const buffer;
     char* const endBuffer;
     BlockHeader* root;
-    //mark block used and remove from free list
+    // mark block used and remove from free list
     void mark_used(BlockHeader* cur);
-    //mark block unsude and add it to free list before root
-    void mark_unused(BlockHeader* newBlock);
+    // mark block free and add it to free list before root
+    void mark_free(BlockHeader* newBlock);
+    // spaw block from free list with another block
+    void list_swap(BlockHeader* from, BlockHeader* to);
 };
 #endif  // DESCRIPTOR_ALLOCATOR_H
