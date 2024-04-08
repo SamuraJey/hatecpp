@@ -6,10 +6,41 @@
 
 #include "../constants.hh"
 
+// Идея 1 - обьединение дескриптора правого блока с хедером левого
+// Они итак всегда находились вплотную к друг другу. Это известно ещё в compile time и мы пользуемся этим фактом для расчёта адресов.
+// Так почему, тогда, не форализовать этот факт обьедив структуры в одну, последовательную и непрерывную.
+// Определение такой структуры  даст компилятору инормацию о взаимном расположении полей в compile time.
+// + можно переложить добрую часть арифметики указателей на компилятор в виде обращений к полям хедера
+// + компилятор имеет больше возможностей для оптимизаций
+// + операции получения концевика и правого соседа вырождаются в одну
+
+// **(за исключением одной проверки в allocate)
+// Идея 2 - использование указателей вместо размеров
+// Размеры блока (**) используются для перехода к хедерам соседей при обьединении свободных блоков.
+// В концевике замена: размер блока => указатель на заголовок
+// + меншье расчётов
+// + удобный доступ к полям левого соседа через -> нотайию
+//
+// В заголовке: размер блока => указатель на правого соседа
+// + меньше расчётов адресов
+// + удобный доступ к полям правого соседа
+// - размер нужно вычислять
+
+// Идея 3 - помечать занятость блока не флагом, а состояним размеров/указателей
+// Концевик ипользуется только для доступа к заголовку блока справа.
+// Заголовок соседа нужен только при склеивании пустых блоков => занятый блок можно пометить концевиком равным нулю (невозможным адресом/размером)
+// невозможность получить заголовок занятого левого соседа - не проблема.
+// + экономия места (каждый bool из-за выравнивания резервирует 8 байт)
+// ? получение состояние левого соеда всё так же не требется разименований
+// - получение состояние правого соседа требует 2 (на 1 больше) разименования
+// p.s. указатель в заголовке используется для вывидения размера блока.
+// При сохранении размера явно этот трюк можно провернуть и с правм соседом (2->0 разиминований).
+
+// Идея 4 - убрать специальную обрабтку крайних блоков буффера в dealocate.
+// крайних блоков не будет, если добавив guard-заглушки по краям буфера.
+
 struct DescriptorAllocator::BlockHeader {
-    //
     BlockHeader* left_neighbour;
-    // bool free;
     BlockHeader* right_neighbour;
     union {
         struct {
@@ -18,6 +49,9 @@ struct DescriptorAllocator::BlockHeader {
         char data[1];
     };
 
+    // Вобщем тут много коротких функций, вызываемых по 1 разу.
+    // Их можно вписать в вызывающий код и убарть лишние сущности
+    // или оставить в виде отдельных вызывов, для формализации кода
     inline size_t get_size() const noexcept {
         return (size_t)(right_neighbour) - (size_t)(this);
     }
@@ -43,18 +77,16 @@ constexpr size_t DescriptorAllocator::free_header = sizeof(BlockHeader);
 constexpr size_t DescriptorAllocator::alloc_header = 2 * sizeof(void*);
 
 DescriptorAllocator::DescriptorAllocator()
-    : buffer((char*)malloc(LINKED_BUFFER_SIZE)),
-      endBuffer(buffer + LINKED_BUFFER_SIZE) {
-    // guard region
-    // последние 8 байт - nulptr
-    // предпоследние 8 байт - указатель на последние 8 байт
-    *(char**)(endBuffer - sizeof(void*)) = nullptr;
-    *(char**)(endBuffer - 2 * sizeof(void*)) = endBuffer - sizeof(void*);
-
+    : buffer((char*)malloc(DESC_BUFFER_SIZE)),
+      endBuffer(buffer + DESC_BUFFER_SIZE) {
     root = (BlockHeader*)(buffer);
     root->left_neighbour = nullptr;
-    (root->right_neighbour = (BlockHeader*)(endBuffer - 3 * sizeof(void*)))->left_neighbour = root;
     root->prev = root->next = root;
+
+    // guard region - обрубок заголовка (24 байта с 3 указателями)
+    *(char**)(endBuffer - sizeof(void*)) = nullptr;
+    *(char**)(endBuffer - 2 * sizeof(void*)) = endBuffer - sizeof(void*);
+    root->set_size(DESC_BUFFER_SIZE - 3 * sizeof(void*))->left_neighbour = root;
 }
 
 DescriptorAllocator::~DescriptorAllocator() {
@@ -77,8 +109,6 @@ inline void DescriptorAllocator::pop_free(BlockHeader* block) {
     BlockHeader* prev = block->prev;
     BlockHeader* next = block->next;
     if (block == root && block == (root = next)) {
-        // Если удоляемый элемент в списке единственный, вырезать его не получится.
-        // Затираем ссылку на такой список.
         root = nullptr;
         return;
     }
