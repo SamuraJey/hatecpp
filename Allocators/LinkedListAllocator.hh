@@ -1,7 +1,6 @@
 #ifndef LINKEDLISTALLOCATOR_H
 #define LINKEDLISTALLOCATOR_H
 
-#include "../constants.hh"
 #include "Allocator.hh"
 
 class LinkedListAllocator : public Allocator {

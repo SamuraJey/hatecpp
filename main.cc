@@ -3,6 +3,7 @@
 #include <map>
 #include <vector>
 
+#include "Allocators/BinaryAllocator.cc"
 #include "Allocators/DescriptorAllocator.hh"
 #include "Allocators/LinkedListAllocator.hh"
 #include "Allocators/PoolAllocator.hh"

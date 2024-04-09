@@ -50,7 +50,9 @@ DescriptorAllocator::DescriptorAllocator()
 }
 
 DescriptorAllocator::~DescriptorAllocator() {
+#if DEBUG
     check_memory();
+#endif
     free(buffer);
 }
 
