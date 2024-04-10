@@ -8,5 +8,4 @@ add_executable(allocators
     Allocators/PoolAllocator.cc
     Allocators/LinkedListAllocator.cc
     Allocators/DescriptorAllocator.cc
-    Allocators/BinaryAllocator.cc
     )

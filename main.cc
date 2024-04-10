@@ -67,26 +67,28 @@ void TextMapTest(Allocator* allocator, const char* allocator_name, TextContainer
     printf(">>%s\ncounting time:     %f sec\ndeallocation time: %f sec\n\n", allocator_name, alloc_time.count(), dealloc_time.count());
 }
 
-int main() {
-    char* ReadBuffer = ReadFromFile("../war_en.txt");
-    TextContainer text_container(ReadBuffer);
+int main() { /*
+     char* ReadBuffer = ReadFromFile("../war_en.txt");
+     TextContainer text_container(ReadBuffer);
 
-    ReferenceAllocator* referenceAllocator = new ReferenceAllocator();
-    TextMapTest(referenceAllocator, "Reference Allocator", text_container);
-    delete referenceAllocator;
+     ReferenceAllocator* referenceAllocator = new ReferenceAllocator();
+     TextMapTest(referenceAllocator, "Reference Allocator", text_container);
+     delete referenceAllocator;
 
-    PoolAllocator* poolAllocator = new PoolAllocator();
-    TextMapTest(poolAllocator, "Pool allocator", text_container);
-    delete poolAllocator;
+     PoolAllocator* poolAllocator = new PoolAllocator();
+     TextMapTest(poolAllocator, "Pool allocator", text_container);
+     delete poolAllocator;
 
-    LinkedListAllocator* linkedListAllocator = new LinkedListAllocator();
-    TextMapTest(linkedListAllocator, "Linked list allocator", text_container);
-    delete linkedListAllocator;
+     LinkedListAllocator* linkedListAllocator = new LinkedListAllocator();
+     TextMapTest(linkedListAllocator, "Linked list allocator", text_container);
+     delete linkedListAllocator;
 
-    DescriptorAllocator* descriptorAllocator = new DescriptorAllocator();
-    TextMapTest(descriptorAllocator, "Descriptor allocator", text_container);
-    delete descriptorAllocator;
+     DescriptorAllocator* descriptorAllocator = new DescriptorAllocator();
+     TextMapTest(descriptorAllocator, "Descriptor allocator", text_container);
+     delete descriptorAllocator;
 
-    free(ReadBuffer);
+     free(ReadBuffer);
+     */
+    printf("%d\n", 5);
     return 0;
 }
