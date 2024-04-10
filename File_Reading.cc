@@ -3,6 +3,8 @@
 // 2 разделить на .h и .cpp файлы
 
 // я включил режим пояснительной бригады и накидал конспекта по материалу на тему особенностей синтаксиса C++ связанных с классами
+#ifndef FILE_READING
+#define FILE_READING
 
 #include <cstdio>
 #include <cstdlib>
@@ -33,7 +35,7 @@ char* const ReadFromFile(const char* FileName) {
     FileBuffer[FileSize] = '\0';
     return FileBuffer;
 }
-
+#endif // !FILE_READING
 // // контейнер, для хранения, токинезации, и многократного чтения текста.
 // class TextContainer {
 //     // обьявление членов класса (пометка для компилятора о существовании таких символов)

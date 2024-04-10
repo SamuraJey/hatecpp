@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <chrono>
 #include <cstdio>
 #include <map>
@@ -39,7 +40,7 @@ void TextMapTest(Allocator* allocator, const char* allocator_name, TextContainer
     {
         STLAdapter<char*> WrapperAllocator(allocator);
         std::map<const char*, size_t, CStringComparator, STLAdapter<std::pair<const char* const, size_t>>> Map(WrapperAllocator);
-
+    
         time_mark = std::chrono::high_resolution_clock::now();
         const char* word;
         while (word = text.GetNextWord()) {  // не нулевая ссылка кастуется к true
