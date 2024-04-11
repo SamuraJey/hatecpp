@@ -12,14 +12,13 @@
 #include "File_Reading.cc"
 #include "TextContainer.hh"
 #include "constants.hh"
-#include <string.h>
 
 bool cmp(std::pair<const char*, size_t> First, std::pair<const char*, size_t> Second) noexcept {
     return First.second > Second.second;
 }
 
 class CStringComparator {
-public:
+   public:
     /*
         A < B --> true
     */
@@ -41,7 +40,7 @@ void TextMapTest(Allocator* allocator, const char* allocator_name, TextContainer
     {
         STLAdapter<char*> WrapperAllocator(allocator);
         std::map<const char*, size_t, CStringComparator, STLAdapter<std::pair<const char* const, size_t>>> Map(WrapperAllocator);
-    
+
         time_mark = std::chrono::high_resolution_clock::now();
         const char* word;
         while (word = text.GetNextWord()) {  // не нулевая ссылка кастуется к true
