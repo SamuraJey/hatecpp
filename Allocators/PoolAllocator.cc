@@ -26,7 +26,8 @@ PoolAllocator::~PoolAllocator() {
 
 void PoolAllocator::createNewBuffer(size_t size) {
     Buffer* New = static_cast<Buffer*>(malloc(size + sizeof(Buffer)));
-    new (New) Buffer();  // placment new
+    // Placment new - конструкция для создания объекта в уже выделенной памяти
+    new (New) Buffer();  // placement new
     New->prev = buffer_list_head;
     New->size = size + sizeof(Buffer);
     buffer_list_head = New;
@@ -39,8 +40,7 @@ char* PoolAllocator::allocate(size_t size) {
         } else {
             createNewBuffer(size);
         }
-        // std::max Defined in header <algorithm>
-        // тернарный оператор - ещё один вариант
+        // Тернарный оператор - ещё один вариант
         // createNewBuffer((size > POOL_BUFFER_SIZE) ? (size) : (POOL_BUFFER_SIZE));
     }
 

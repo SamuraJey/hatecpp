@@ -116,7 +116,7 @@ last alloc request/last checked block capacity: %lu/%lu\n",
     ++block_size_distribution[min_req_size];
     ++block_size_distribution[spare_space];
 #endif
-    BlockHeader* cuted_block = reinterpret_cast<BlockHeader*>((char*)cur + spare_space);
+    BlockHeader* cuted_block = reinterpret_cast<BlockHeader*>(reinterpret_cast<char*>(cur) + spare_space);
     cur->size = spare_space;
     cuted_block->size = min_req_size;
     return cuted_block->data;
@@ -124,7 +124,7 @@ last alloc request/last checked block capacity: %lu/%lu\n",
 
 void LinkedListAllocator::deallocate(void* ptr) {
     //!!! ptr - адрес на начала данных, не блока
-    BlockHeader* to_free = reinterpret_cast<BlockHeader*>((char*)ptr - alloc_header);
+    BlockHeader* to_free = reinterpret_cast<BlockHeader*>(reinterpret_cast<char*>(ptr) - alloc_header);
 #if DEBUG
     bytes_allocated -= to_free->size - alloc_header;
     bytes_used -= to_free->size - free_header;
@@ -138,16 +138,16 @@ void LinkedListAllocator::deallocate(void* ptr) {
     BlockHeader *cur = root, *prev_free = nullptr, *next_free = nullptr;
     do {
         // Запоминаем граничащие свободные блоки
-        if ((char*)cur + cur->size == (char*)to_free) {
+        if (reinterpret_cast<char*>(cur) + cur->size == reinterpret_cast<char*>(to_free)) {
             prev_free = cur;
         }
-        if ((char*)to_free + to_free->size == (char*)cur) {
+        if (reinterpret_cast<char*>(to_free) + to_free->size == reinterpret_cast<char*>(cur)) {
             next_free = cur;
         }
     } while ((cur = cur->next) != root);  // Самый затратный цыкл
 
     // Далее обработка 4 случаев. (наличие/отсутствие)*(правого/левого) соседа для слияния
-    switch ((bool)prev_free << 1 | (bool)next_free) {
+    switch (static_cast<bool>(prev_free) << 1 | static_cast<bool>(next_free)) {
     // Случай 0: соседей нет => вставляем блок за корнем
     case 0:
         (to_free->prev = root)->next = (to_free->next = root->next)->prev = to_free;

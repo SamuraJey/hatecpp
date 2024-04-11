@@ -1,3 +1,5 @@
+// Класс-адаптер для использования с STL контейнерами.
+
 #ifndef STL_ADAPTER
 #define STL_ADAPTER
 

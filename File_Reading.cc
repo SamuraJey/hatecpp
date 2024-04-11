@@ -18,24 +18,25 @@ char* const ReadFromFile(const char* FileName) {
     }
 
     fseek(File, 0, SEEK_END);
-    long long FileSize = ftell(File);
+    size_t FileSize = ftell(File);
     rewind(File);
 
     char* const FileBuffer = static_cast<char*>(malloc(FileSize + 1));
 
     size_t TotalBytesRead = fread(FileBuffer, 1, FileSize, File);
     fclose(File);
-    if (TotalBytesRead == (size_t)FileSize) {
+    if (TotalBytesRead == FileSize) {
         printf("TotalBytesRead and FileSize are the same: %lu\n\n", TotalBytesRead);
     } else {
         printf("WARNING\nTotalBytesRead and FileSize are NOT the same\n");
-        printf("TotalBytesRead = %lu and FileSize = %lld\n\n", TotalBytesRead, FileSize);
+        printf("TotalBytesRead = %lu and FileSize = %lu\n\n", TotalBytesRead, FileSize);
     }
 
     FileBuffer[FileSize] = '\0';
     return FileBuffer;
 }
-#endif // !FILE_READING
+#endif // FILE_READING
+
 // // контейнер, для хранения, токинезации, и многократного чтения текста.
 // class TextContainer {
 //     // обьявление членов класса (пометка для компилятора о существовании таких символов)
