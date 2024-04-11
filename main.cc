@@ -1,41 +1,17 @@
 #include <algorithm>
 #include <chrono>
-#include <cstdint>
 #include <cstdio>
-#include <cstring>
-#include <iostream>
 #include <map>
 #include <vector>
 
+#include "Allocators/DescriptorAllocator.hh"
 #include "Allocators/LinkedListAllocator.hh"
 #include "Allocators/PoolAllocator.hh"
 #include "Allocators/ReferenceAllocator.hh"
 #include "Allocators/STLAdapter.tpp"
+#include "File_Reading.cc"
+#include "TextContainer.hh"
 #include "constants.hh"
-
-bool isDelim(char& c) {
-    switch (c) {
-    case ' ':
-    case '\n':
-    case '.':
-    case ',':
-    case '!':
-    case '-':
-    case ';':
-    case ':':
-    case '?':
-    case '"':
-    case '\'':
-    case '(':
-    case ')':
-    case '[':
-    case ']':
-    case '/':
-        return true;
-    default:
-        return false;
-    }
-}
 
 bool cmp(std::pair<const char*, size_t> First, std::pair<const char*, size_t> Second) {
     return First.second > Second.second;
@@ -57,51 +33,20 @@ class CStringComparator {
     }
 };
 
-char* ReadFromFile(const char* FileName) {
-    FILE* File = fopen(FileName, "rb");
-    if (File == nullptr) {
-        printf("fopen\n");
-        printf("Terminal failure: unable to open file \"%s\" for read.\n", FileName);
-        return nullptr;
-    }
-
-    fseek(File, 0, SEEK_END);
-    long long FileSize = ftell(File);
-    rewind(File);
-
-    char* ReadBuffer = static_cast<char*>(malloc(FileSize + 1));
-    // printf("FileSize = %lld\n", FileSize);
-
-    // Добавил переменную принимающую значение fread, что бы не было warning
-    // И сделал проверку на количество реально считанных байт и размер файла
-    size_t TotalBytesRead = fread(ReadBuffer, 1, FileSize, File);
-    if (TotalBytesRead == (size_t)FileSize) {
-        printf("TotalBytesRead and FileSize are the same: %lu\n\n", TotalBytesRead);
-    } else {
-        printf("WARNING\nTotalBytesRead and FileSize are NOT the same\n");
-        printf("TotalBytesRead = %lu and FileSize = %lld\n\n", TotalBytesRead, FileSize);
-    }
-
-    ReadBuffer[FileSize] = '\0';
-    fclose(File);
-
-    return ReadBuffer;
-}
-
-void TextMapTest(Allocator* allocator, const char* allocator_name, char* TextBuffer) {
-    std::chrono::_V2::system_clock::time_point alloc_start, dealloc_start;
-    std::chrono::duration<double> alloc_time, dealloc_time, total_time;
-    STLAdapter<char*> WrapperAllocator(allocator);
-
+void TextMapTest(Allocator* allocator, const char* allocator_name, TextContainer text) {
+    std::chrono::_V2::system_clock::time_point time_mark;
+    std::chrono::duration<double> alloc_time;
+    std::chrono::duration<double> dealloc_time;
     {
+        STLAdapter<char*> WrapperAllocator(allocator);
         std::map<const char*, size_t, CStringComparator, STLAdapter<std::pair<const char* const, size_t>>> Map(WrapperAllocator);
-        alloc_start = std::chrono::high_resolution_clock::now();
-        char* Word = strtok(TextBuffer, " \n\t\r");
-        while (Word != nullptr) {
-            Map[Word]++;
-            Word = strtok(nullptr, " \n\t\r");
+    
+        time_mark = std::chrono::high_resolution_clock::now();
+        const char* word;
+        while (word = text.GetNextWord()) {  // не нулевая ссылка кастуется к true
+            Map[word]++;
         }
-        alloc_time = std::chrono::high_resolution_clock::now() - alloc_start;
+        alloc_time = std::chrono::high_resolution_clock::now() - time_mark;
 
         std::vector<std::pair<const char*, int>> SortedWords(Map.begin(), Map.end());
         std::sort(SortedWords.begin(), SortedWords.end(), cmp);
@@ -114,29 +59,33 @@ void TextMapTest(Allocator* allocator, const char* allocator_name, char* TextBuf
         }
         printf("Total number of words: %d\n", num_of_word);
 
-        free(TextBuffer);
-        dealloc_start = std::chrono::high_resolution_clock::now();
-    }  // именно здесь разрушается Map и освобождается занятая ей память.
-    dealloc_time = std::chrono::high_resolution_clock::now() - dealloc_start;
-    total_time = std::chrono::high_resolution_clock::now() - alloc_start;
+        time_mark = std::chrono::high_resolution_clock::now();
+        // именно здесь разрушается Map и освобождается занятая ей память.
+    }
+    dealloc_time = std::chrono::high_resolution_clock::now() - time_mark;
 
-    printf("\n%s total time: %f\nparsing time: %f sec, deallocation time: %f sec\n\n", allocator_name, total_time.count(), alloc_time.count(), dealloc_time.count());
+    printf(">>%s\ncounting time:     %f sec\ndeallocation time: %f sec\n\n", allocator_name, alloc_time.count(), dealloc_time.count());
 }
 
 int main() {
     char* ReadBuffer = ReadFromFile("../war_en.txt");
+    TextContainer text_container(ReadBuffer);
 
     ReferenceAllocator* referenceAllocator = new ReferenceAllocator();
-    TextMapTest(referenceAllocator, "Reference Allocator", strdup(ReadBuffer));
+    TextMapTest(referenceAllocator, "Reference Allocator", text_container);
     delete referenceAllocator;
 
     PoolAllocator* poolAllocator = new PoolAllocator();
-    TextMapTest(poolAllocator, "Pool allocator", strdup(ReadBuffer));
+    TextMapTest(poolAllocator, "Pool allocator", text_container);
     delete poolAllocator;
 
     LinkedListAllocator* linkedListAllocator = new LinkedListAllocator();
-    TextMapTest(linkedListAllocator, "Linked list allocator", strdup(ReadBuffer));
+    TextMapTest(linkedListAllocator, "Linked list allocator", text_container);
     delete linkedListAllocator;
+
+    DescriptorAllocator* descriptorAllocator = new DescriptorAllocator();
+    TextMapTest(descriptorAllocator, "Descriptor allocator", text_container);
+    delete descriptorAllocator;
 
     free(ReadBuffer);
     return 0;

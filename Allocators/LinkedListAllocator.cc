@@ -18,8 +18,8 @@ struct LinkedListAllocator::BlockHeader {
     };
 };
 
-constexpr size_t LinkedListAllocator::F_hrader = sizeof(LinkedListAllocator::BlockHeader);
-constexpr size_t LinkedListAllocator::A_header = sizeof(size_t);
+constexpr size_t LinkedListAllocator::free_header = sizeof(LinkedListAllocator::BlockHeader);
+constexpr size_t LinkedListAllocator::alloc_header = sizeof(size_t);
 
 LinkedListAllocator::LinkedListAllocator()
     // Синтаксис для инициализации константных полей. см. Constructors and member initializer lists
@@ -29,7 +29,7 @@ LinkedListAllocator::LinkedListAllocator()
 
 #if DEBUG
     bytes_allocated = 0;
-    max_bytes_used = bytes_used = F_hrader;
+    max_bytes_used = bytes_used = free_header;
     max_block_count = block_counter = 1;
     block_size_distribution[LINKED_BUFFER_SIZE] = 1;
 
@@ -62,18 +62,14 @@ block distribution:\n",
     free(buffer);
 }
 
-void LinkedListAllocator::remove_from_list(BlockHeader* rem) {
+void LinkedListAllocator::mark_used(BlockHeader* rem) {
     BlockHeader* prev = rem->prev;
     BlockHeader* next = rem->next;
-    if (rem == root) {
-        if (rem == next) {
-            // Список из 1 удаляемого элемента - забываем
-            root = nullptr;
-            return;
-        } else {
-            // Поддержание доступа к списку
-            root = next;
-        }
+    if (rem == root && rem == (root = next)) {
+        // Если удоляемый элемент в списке единственный, вырезать его не получится.
+        // Затираем ссылку на такой список.
+        root = nullptr;
+        return;
     }
     prev->next = next;
     next->prev = prev;
@@ -85,58 +81,56 @@ char* LinkedListAllocator::allocate(size_t size) {
         printf("No Free blocks (or linked list access is lost)\n");
         throw std::bad_alloc();
     }
+    size_t min_req_size = size + alloc_header;
 
+    // итерируемся пока текущий блок слишком мал и ещё остались не проверенные блоки
     BlockHeader* cur = root;
-    do {
-        cur = cur->next;  // root - последний элемент итерации
-    } while (cur != root && cur->size < size + A_header);
-
-    if (cur->size < size + A_header) {
+    while (cur->size < min_req_size && (cur = cur->next) != root) {
+    }
+    if (cur->size < min_req_size) {
         printf(
             "No Block of sufficient size error\nBuffer size: %lu\n\
 last alloc request/last checked block capacity: %lu/%lu\n",
-            LINKED_BUFFER_SIZE, size, cur->size - A_header);
+            LINKED_BUFFER_SIZE, size, cur->size - alloc_header);
         throw std::bad_alloc();
     }
 
-    // От блока достаточного размера отрезаем новый блок требуемого размера
-    if (cur->size >= (size + A_header) + F_hrader) {
-        BlockHeader* cuted_block = reinterpret_cast<BlockHeader*>(((char*)cur + cur->size) - (size + A_header));
-
+    // От блока достаточного размера будем отрезать кусок требуемого размера
+    size_t spare_space = cur->size - min_req_size;
+    if (spare_space < free_header) {
 #if DEBUG
-        bytes_allocated += size;
-        bytes_used += size + A_header;
-        ++block_counter;
-        max_block_count = (block_counter > max_block_count) ? (block_counter) : (max_block_count);
-        --block_size_distribution[cur->size];
-        ++block_size_distribution[(size + A_header)];
-        ++block_size_distribution[cur->size - (size + A_header)];
-#endif
-
-        cur->size -= (cuted_block->size = size + A_header);
-        return cuted_block->data;
-    } else {
-        remove_from_list(cur);
-
-#if DEBUG
-        bytes_allocated += cur->size - A_header;
-        bytes_used += cur->size - F_hrader;
+        bytes_allocated += cur->size - alloc_header;
+        bytes_used += cur->size - free_header;
         max_bytes_used = (bytes_used > max_bytes_used) ? (bytes_used) : (max_bytes_used);
 #endif
-
+        mark_used(cur);
         return cur->data;
     }
+
+#if DEBUG
+    bytes_allocated += size;
+    bytes_used += min_req_size;
+    ++block_counter;
+    max_block_count = (block_counter > max_block_count) ? (block_counter) : (max_block_count);
+    --block_size_distribution[cur->size];
+    ++block_size_distribution[min_req_size];
+    ++block_size_distribution[spare_space];
+#endif
+    BlockHeader* cuted_block = reinterpret_cast<BlockHeader*>((char*)cur + spare_space);
+    cur->size = spare_space;
+    cuted_block->size = min_req_size;
+    return cuted_block->data;
 }
 
 void LinkedListAllocator::deallocate(void* ptr) {
-    //!!! p - адрес на начала данных, не блока
-    BlockHeader* to_free = reinterpret_cast<BlockHeader*>((char*)ptr - A_header);
+    //!!! ptr - адрес на начала данных, не блока
+    BlockHeader* to_free = reinterpret_cast<BlockHeader*>((char*)ptr - alloc_header);
 #if DEBUG
-    bytes_allocated -= to_free->size - A_header;
-    bytes_used -= to_free->size - F_hrader;
+    bytes_allocated -= to_free->size - alloc_header;
+    bytes_used -= to_free->size - free_header;
     max_bytes_used = (bytes_used > max_bytes_used) ? (bytes_used) : (max_bytes_used);
 #endif
-    if (root == nullptr) {
+    if (!root) {
         root = to_free->prev = to_free->next = to_free;
         return;
     }
@@ -150,7 +144,7 @@ void LinkedListAllocator::deallocate(void* ptr) {
         if ((char*)to_free + to_free->size == (char*)cur) {
             next_free = cur;
         }
-    } while ((cur = cur->next) != root);
+    } while ((cur = cur->next) != root);  // Самый затратный цыкл
 
     // Далее обработка 4 случаев. (наличие/отсутствие)*(правого/левого) соседа для слияния
     switch ((bool)prev_free << 1 | (bool)next_free) {
@@ -158,12 +152,13 @@ void LinkedListAllocator::deallocate(void* ptr) {
     case 0:
         (to_free->prev = root)->next = (to_free->next = root->next)->prev = to_free;
         break;
+
     // Случай 1: только сосед справа => подменяем в списке соседа на себя и присоединяем его
     case 1:
         (to_free->prev = next_free->prev)->next = (to_free->next = next_free->next)->prev = to_free;
 
 #if DEBUG
-        bytes_used -= F_hrader;
+        bytes_used -= free_header;
         --block_counter;
         --block_size_distribution[to_free->size];
         --block_size_distribution[next_free->size];
@@ -174,7 +169,7 @@ void LinkedListAllocator::deallocate(void* ptr) {
     // Случай 2: только сосед слева => присоеденяемся к нему
     case 2:
 #if DEBUG
-        bytes_used -= F_hrader;
+        bytes_used -= free_header;
         --block_counter;
         --block_size_distribution[prev_free->size];
         --block_size_distribution[to_free->size];
@@ -185,9 +180,9 @@ void LinkedListAllocator::deallocate(void* ptr) {
         break;
     // Случай 3: оба соседа слева и справа => вырезаем правого и присоединяем себя и правого к левому
     case 3:
-        remove_from_list(next_free);
+        mark_used(next_free);
 #if DEBUG
-        bytes_used -= 2 * F_hrader;
+        bytes_used -= 2 * free_header;
         block_counter -= 2;
         --block_size_distribution[prev_free->size];
         --block_size_distribution[to_free->size];

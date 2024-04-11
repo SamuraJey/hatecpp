@@ -12,14 +12,14 @@ class LinkedListAllocator : public Allocator {
     void deallocate(void* ptr) override;
 
    private:
-    char* const buffer;
     struct BlockHeader;
+    char* const buffer;
     BlockHeader* root;
     // Alias for Free header size
-    static const size_t F_hrader;
+    static const size_t free_header;
     // Alias for Allocated header size
-    static const size_t A_header;
-    void remove_from_list(BlockHeader* rem);
+    static const size_t alloc_header;
+    void mark_used(BlockHeader* block);
 
 #if DEBUG
     // сумма байт всех запросов
