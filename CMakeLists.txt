@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.25)
-project(hatecpp)
+project(FILP-MO)
 set(CMAKE_CXX_STANDARD 23)
 
 add_executable(allocators
@@ -9,3 +9,8 @@ add_executable(allocators
     TextContainer.cc
     Allocators/DescriptorAllocator.cc
     )
+
+add_executable(binary_tree
+    Binary\ tree/main.cc
+    Binary\ tree/BinarySearchTree.cc
+)
