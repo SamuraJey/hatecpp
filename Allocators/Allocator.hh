@@ -8,4 +8,4 @@ class Allocator {
     virtual void deallocate(void* p) = 0;
 };
 
-#endif
+#endif // ALLOCATOR_H

@@ -13,7 +13,7 @@
 #include "TextContainer.hh"
 #include "constants.hh"
 
-bool cmp(std::pair<const char*, size_t> First, std::pair<const char*, size_t> Second) {
+bool cmp(std::pair<const char*, size_t> First, std::pair<const char*, size_t> Second) noexcept {
     return First.second > Second.second;
 }
 
@@ -22,7 +22,7 @@ class CStringComparator {
     /*
         A < B --> true
     */
-    bool operator()(const char* A, const char* B) const {
+    bool operator()(const char* A, const char* B) const noexcept {
         // Выход на первой отличающейся букве
         // Или на коде терменирующего нуля a = b ='\0' -> ret false
         while (A[0] == B[0] && A[0]) {
@@ -40,7 +40,7 @@ void TextMapTest(Allocator* allocator, const char* allocator_name, TextContainer
     {
         STLAdapter<char*> WrapperAllocator(allocator);
         std::map<const char*, size_t, CStringComparator, STLAdapter<std::pair<const char* const, size_t>>> Map(WrapperAllocator);
-    
+
         time_mark = std::chrono::high_resolution_clock::now();
         const char* word;
         while (word = text.GetNextWord()) {  // не нулевая ссылка кастуется к true
@@ -57,7 +57,7 @@ void TextMapTest(Allocator* allocator, const char* allocator_name, TextContainer
                 printf("%s: %d\n", Pair.first, Pair.second);
             num_of_word += Pair.second;
         }
-        printf("Total number of words: %d\n", num_of_word);
+        printf("Total number of words: %d\n\n", num_of_word);
 
         time_mark = std::chrono::high_resolution_clock::now();
         // именно здесь разрушается Map и освобождается занятая ей память.
