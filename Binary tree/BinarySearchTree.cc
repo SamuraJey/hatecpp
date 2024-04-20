@@ -1,4 +1,5 @@
 #include "BinarySearchTree.hh"
+
 #include <iostream>
 
 struct BinarySearchTree::Node {

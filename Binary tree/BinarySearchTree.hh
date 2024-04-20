@@ -1,3 +1,6 @@
+#ifndef BINARY_TREE_H
+#define BINARY_TREE_H
+
 class BinarySearchTree {
    public:
     BinarySearchTree();
@@ -18,3 +21,5 @@ class BinarySearchTree {
     Node* find(Node* currentNode, int valueToFind);
     void inorder(Node* currentNode);
 };
+
+#endif  // !BINARY_TREE_H
