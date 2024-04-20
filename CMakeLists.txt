@@ -9,3 +9,8 @@ add_executable(allocators
     TextContainer.cc
     Allocators/DescriptorAllocator.cc
     )
+
+add_executable(binary_tree
+    Binary\ tree/main.cc
+    Binary\ tree/BinarySearchTree.cc
+)
