@@ -9,9 +9,7 @@ struct BinarySearchTree::Node {
 };
 
 BinarySearchTree::Node* BinarySearchTree::clear(Node* currentNode) {
-    if (currentNode == nullptr)
-        return nullptr;
-    {
+    if (currentNode != nullptr) {
         clear(currentNode->left);
         clear(currentNode->right);
         delete currentNode;
@@ -24,9 +22,10 @@ BinarySearchTree::Node* BinarySearchTree::insert(int valueToInsert, Node* curren
         currentNode = new Node;
         currentNode->data = valueToInsert;
         currentNode->left = currentNode->right = nullptr;
-    } else if (valueToInsert < currentNode->data)
+        
+    } else if (valueToInsert < currentNode->data) // если вставляемое значение меньше текущего узла - идем влево
         currentNode->left = insert(valueToInsert, currentNode->left);
-    else if (valueToInsert > currentNode->data)
+    else if (valueToInsert > currentNode->data) 
         currentNode->right = insert(valueToInsert, currentNode->right);
     return currentNode;
 }
