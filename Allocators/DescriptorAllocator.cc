@@ -22,14 +22,12 @@ struct DescriptorAllocator::BlockHeader {
     // мб стоит добавить функции для синхронной работы с обоими дескрипторами для сокращения кода
     Descriptor* getRightDescriptor() {
         return reinterpret_cast<Descriptor*>(reinterpret_cast<char*>(this) + descriptor.block_size - sizeof(Descriptor));
-        // return (Descriptor*)((char*)this + descriptor.block_size - sizeof(Descriptor));
     }
 
     // синхронно меняет размер дескриптолров блока и возвращает ссылку на правый (для других махинаций если нужно)
     DescriptorAllocator::Descriptor* sync_size_set(size_t size) {
         descriptor.block_size = size;
         Descriptor* linked_disk = reinterpret_cast<Descriptor*>(reinterpret_cast<char*>(this) + size - sizeof(Descriptor));
-        // Descriptor* linked_disk = (Descriptor*)((char*)this + size - sizeof(Descriptor));
         linked_disk->block_size = size;
         return linked_disk;
     }
@@ -123,9 +121,7 @@ char* DescriptorAllocator::allocate(size_t size) {
 void DescriptorAllocator::deallocate(void* data) {
     BlockHeader* mid_block = reinterpret_cast<BlockHeader*>(static_cast<char*>(data) - sizeof(Descriptor));
     Descriptor* leftDescriptor = reinterpret_cast<Descriptor*>(mid_block) - 1;
-    // Descriptor* leftDescriptor = (Descriptor*)mid_block - 1;
     Descriptor* rightDescriptor = reinterpret_cast<Descriptor*>(reinterpret_cast<char*>(mid_block) + mid_block->descriptor.block_size);
-    // Descriptor* rightDescriptor = (Descriptor*)((char*)mid_block + mid_block->descriptor.block_size);
     BlockHeader* left_block;
     BlockHeader* right_block;
 
@@ -150,11 +146,8 @@ void DescriptorAllocator::deallocate(void* data) {
     // Случай 2: только сосед слева => присоеденяемся к нему
     case 2:
         left_block = reinterpret_cast<BlockHeader*>(reinterpret_cast<char*>(mid_block) - leftDescriptor->block_size);
-        // left_block = (BlockHeader*)((char*)mid_block - leftDescriptor->block_size);
-
         left_block->descriptor.block_size += mid_block->descriptor.block_size;
         left_block->getRightDescriptor()->block_size = left_block->descriptor.block_size;
-
         left_block->getRightDescriptor()->free = true;
         break;
 
@@ -162,8 +155,6 @@ void DescriptorAllocator::deallocate(void* data) {
     case 3:
         left_block = reinterpret_cast<BlockHeader*>(reinterpret_cast<char*>(mid_block) - leftDescriptor->block_size);
         right_block = reinterpret_cast<BlockHeader*>(rightDescriptor);
-        // left_block = (BlockHeader*)((char*)mid_block - leftDescriptor->block_size);
-        // right_block = (BlockHeader*)rightDescriptor;
 
         BlockHeader* next = right_block->next;
         BlockHeader* prev = right_block->prev;
