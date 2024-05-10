@@ -12,6 +12,7 @@
 #include "File_Reading.cc"
 #include "TextContainer.hh"
 #include "constants.hh"
+#include "Allocators/WIP_BuddyAllocator.cc"
 
 bool cmp(std::pair<const char*, size_t> First, std::pair<const char*, size_t> Second) noexcept {
     return First.second > Second.second;
@@ -19,9 +20,7 @@ bool cmp(std::pair<const char*, size_t> First, std::pair<const char*, size_t> Se
 
 class CStringComparator {
    public:
-    /*
-        A < B --> true
-    */
+    // A < B => true
     bool operator()(const char* A, const char* B) const noexcept {
         // Выход на первой отличающейся букве
         // Или на коде терменирующего нуля a = b ='\0' -> ret false
@@ -87,6 +86,12 @@ int main() {
     TextMapTest(descriptorAllocator, "Descriptor allocator", text_container);
     delete descriptorAllocator;
 
+    // Сейчас BuddyAllocator не работает. Segmentation fault на строке 36 в WIP_BuddyAllocator.cc
+    cout << "Buddy allocator started" << endl;
+    BuddyAllocator* buddyAllocator = new BuddyAllocator();
+    TextMapTest(buddyAllocator, "Buddy allocator", text_container);
+    delete buddyAllocator;
+    cout << "Buddy allocator ended" << endl;
     free(ReadBuffer);
     return 0;
 }
