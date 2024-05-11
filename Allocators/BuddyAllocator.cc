@@ -18,11 +18,11 @@ struct BuddyAllocator::BlockHeader {
 };
 
 BuddyAllocator::BuddyAllocator()
-    : buffer((char*)malloc(1 << BADDY_MAX_LEVEL)) {
+    : buffer((char*)malloc(1 << BUDDY_MAX_LEVEL)) {
     BlockHeader* block = reinterpret_cast<BlockHeader*>(buffer);
-    block->level = BADDY_MAX_LEVEL;
+    block->level = BUDDY_MAX_LEVEL;
     block->free = true;
-    levelLists[BADDY_MAX_LEVEL].put(block);
+    levelLists[BUDDY_MAX_LEVEL].put(block);
 }
 
 BuddyAllocator::~BuddyAllocator() {
@@ -35,15 +35,17 @@ BuddyAllocator::~BuddyAllocator() {
 char* BuddyAllocator::allocate(size_t size) {
     size_t allocateSize = std::max(sizeof(BlockHeader), size + offsetof(BlockHeader, data));
     size_t blockIndex = 0;
-    while ((blockIndex <= BADDY_MAX_LEVEL) && (1 << blockIndex < allocateSize || levelLists[blockIndex].isEmpty())) ++blockIndex;
-    if (blockIndex > BADDY_MAX_LEVEL) throw std::bad_alloc();
+    while ((blockIndex <= BUDDY_MAX_LEVEL) && (1 << blockIndex < allocateSize || levelLists[blockIndex].isEmpty()))
+        ++blockIndex;
+    if (blockIndex > BUDDY_MAX_LEVEL)
+        throw std::bad_alloc();
 
     List<BlockHeader>& currentList = levelLists[blockIndex];
     BlockHeader* currentItem = currentList.pop();
     size_t currentItemSize = 1 << currentItem->level;
     while (((currentItemSize / 2) >= allocateSize)) {
         currentItemSize /= 2;
-        BlockHeader* cuted = (BlockHeader*)((char*)currentItem + currentItemSize);
+        BlockHeader* cuted = reinterpret_cast<BlockHeader*>(reinterpret_cast<char*>(currentItem) + currentItemSize);
         currentItem->level = cuted->level = currentItem->level - 1;
         cuted->free = true;
         levelLists[cuted->level].put(cuted);
@@ -54,13 +56,12 @@ char* BuddyAllocator::allocate(size_t size) {
 }
 
 void BuddyAllocator::deallocate(void* ptr) {
-    BlockHeader* block = reinterpret_cast<BlockHeader*>((char*)ptr - offsetof(BlockHeader, data));
-
+    BlockHeader* block = reinterpret_cast<BlockHeader*>(static_cast<char*>(ptr) - offsetof(BlockHeader, data));
     size_t level = block->level;
     size_t block_idx = Block_idx(block, level);
     BlockHeader* neighbor = Block_ptr(block_idx ^ 1, level);
 
-    while (level < BADDY_MAX_LEVEL && neighbor->level == level && neighbor->free) {
+    while (level < BUDDY_MAX_LEVEL && neighbor->level == level && neighbor->free) {
         // вызов remove на currentList, который не обновлялся при итерировании.
         levelLists[level].remove(neighbor);
         block_idx >>= 1;
@@ -76,9 +77,8 @@ void BuddyAllocator::deallocate(void* ptr) {
 }
 
 void BuddyAllocator::check_memory() {
-    printf("Lol dude\n");
-    for (size_t i = 0; i <= BADDY_MAX_LEVEL; i++) {
-        printf("level %d, size %d\n", i, 1 << i);
+    for (size_t i = 0; i <= BUDDY_MAX_LEVEL; i++) {
+        printf("level %llu, size %llu\n", i, 1 << i);
         BlockHeader *root = levelLists[i].getRoot(), *cur = root;
         if (root == nullptr) continue;
 

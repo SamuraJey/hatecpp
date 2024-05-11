@@ -8,7 +8,7 @@
 class BuddyAllocator : public Allocator {
    private:
     struct BlockHeader;
-    List<BlockHeader> levelLists[BADDY_MAX_LEVEL + 1];
+    List<BlockHeader> levelLists[BUDDY_MAX_LEVEL + 1];
     char* const buffer;
 
    public:
@@ -21,7 +21,7 @@ class BuddyAllocator : public Allocator {
     void check_memory();
 
    private:
-    // scary exprassion wrapper functions
+    // scary expression wrapper functions
     size_t Block_idx(BlockHeader* block_ptr, size_t block_level) noexcept;
     BlockHeader* Block_ptr(size_t block_idx, size_t block_level) noexcept;
 };
