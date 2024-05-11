@@ -5,7 +5,7 @@
 
 #include <stdlib.h>
 
-#include "Allocator.hh"
+#include "resources/Allocator.hh"
 class ReferenceAllocator : public Allocator {
    public:
     inline char* allocate(size_t size) override {

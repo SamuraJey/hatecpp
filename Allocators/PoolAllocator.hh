@@ -2,7 +2,7 @@
 #define POOLALLOCATOR_H
 #include <stddef.h>
 
-#include "Allocator.hh"
+#include "resources/Allocator.hh"
 class PoolAllocator : public Allocator {
    public:
     PoolAllocator();

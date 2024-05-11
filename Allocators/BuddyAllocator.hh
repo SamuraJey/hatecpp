@@ -1,9 +1,9 @@
 #ifndef BUDDYALLOCATOR_H
 #define BUDDYALLOCATOR_H
 
-#include "../constants.hh"
-#include "Allocator.hh"
-#include "List.tpp"
+#include "resources/Allocator.hh"
+#include "resources/List.tpp"
+#include "resources/constants.hh"
 
 class BuddyAllocator : public Allocator {
    private:

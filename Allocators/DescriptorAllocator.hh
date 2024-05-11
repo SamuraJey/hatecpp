@@ -1,7 +1,7 @@
 #ifndef DESCRIPTOR_ALLOCATOR_H
 #define DESCRIPTOR_ALLOCATOR_H
 
-#include "Allocator.hh"
+#include "resources/Allocator.hh"
 
 class DescriptorAllocator : public Allocator {
    public:

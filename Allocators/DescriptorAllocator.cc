@@ -3,7 +3,7 @@
 #include <new>
 #include <stdexcept>
 
-#include "../constants.hh"
+#include "resources/constants.hh"
 
 struct DescriptorAllocator::Descriptor {
     size_t block_size;  // получалась обманчивая нотация BlockHeader.Descriptor.size читался как размер дискриптора, а не всго блока

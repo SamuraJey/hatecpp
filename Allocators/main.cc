@@ -4,15 +4,15 @@
 #include <map>
 #include <vector>
 
-#include "Allocators/BuddyAllocator.hh"
-#include "Allocators/DescriptorAllocator.hh"
-#include "Allocators/LinkedListAllocator.hh"
-#include "Allocators/PoolAllocator.hh"
-#include "Allocators/ReferenceAllocator.hh"
-#include "Allocators/STLAdapter.tpp"
-#include "File_Reading.cc"
-#include "TextContainer.hh"
-#include "constants.hh"
+#include "BuddyAllocator.hh"
+#include "DescriptorAllocator.hh"
+#include "LinkedListAllocator.hh"
+#include "PoolAllocator.hh"
+#include "ReferenceAllocator.hh"
+#include "resources/File_Reading.cc"
+#include "resources/STLAdapter.tpp"
+#include "resources/TextContainer.hh"
+#include "resources/constants.hh"
 
 bool cmp(std::pair<const char*, size_t> First, std::pair<const char*, size_t> Second) noexcept {
     return First.second > Second.second;
@@ -69,7 +69,7 @@ void TextMapTest(Allocator* allocator, const char* allocator_name, TextContainer
 }
 
 int main() {
-    char* ReadBuffer = ReadFromFile("../war_en.txt");
+    char* ReadBuffer = ReadFromFile("../Allocators/resources/war_en.txt");
     TextContainer text_container(ReadBuffer);
 
     ReferenceAllocator* referenceAllocator = new ReferenceAllocator();
