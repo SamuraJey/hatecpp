@@ -4,10 +4,11 @@ set(CMAKE_CXX_STANDARD 23)
 
 add_executable(allocators
     main.cc
+    TextContainer.cc
     Allocators/PoolAllocator.cc
     Allocators/LinkedListAllocator.cc
-    TextContainer.cc
     Allocators/DescriptorAllocator.cc
+    Allocators/BuddyAllocator.cc
     )
 
 add_executable(binary_tree

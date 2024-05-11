@@ -4,6 +4,7 @@
 #include <map>
 #include <vector>
 
+#include "Allocators/BuddyAllocator.hh"
 #include "Allocators/DescriptorAllocator.hh"
 #include "Allocators/LinkedListAllocator.hh"
 #include "Allocators/PoolAllocator.hh"
@@ -12,7 +13,6 @@
 #include "File_Reading.cc"
 #include "TextContainer.hh"
 #include "constants.hh"
-#include "Allocators/WIP_BuddyAllocator.cc"
 
 bool cmp(std::pair<const char*, size_t> First, std::pair<const char*, size_t> Second) noexcept {
     return First.second > Second.second;
@@ -33,6 +33,8 @@ class CStringComparator {
 };
 
 void TextMapTest(Allocator* allocator, const char* allocator_name, TextContainer text) {
+    printf("\n\n>>%s test results\n", allocator_name);
+
     std::chrono::_V2::system_clock::time_point time_mark;
     std::chrono::duration<double> alloc_time;
     std::chrono::duration<double> dealloc_time;
@@ -56,14 +58,14 @@ void TextMapTest(Allocator* allocator, const char* allocator_name, TextContainer
                 printf("%s: %d\n", Pair.first, Pair.second);
             num_of_word += Pair.second;
         }
-        printf("Total number of words: %d\n\n", num_of_word);
+        printf("Total number of words: %d\n", num_of_word);
 
         time_mark = std::chrono::high_resolution_clock::now();
         // именно здесь разрушается Map и освобождается занятая ей память.
     }
     dealloc_time = std::chrono::high_resolution_clock::now() - time_mark;
 
-    printf(">>%s\ncounting time:     %f sec\ndeallocation time: %f sec\n\n", allocator_name, alloc_time.count(), dealloc_time.count());
+    printf("counting time:     %f sec\ndeallocation time: %f sec\n", alloc_time.count(), dealloc_time.count());
 }
 
 int main() {
@@ -86,12 +88,10 @@ int main() {
     TextMapTest(descriptorAllocator, "Descriptor allocator", text_container);
     delete descriptorAllocator;
 
-    // Сейчас BuddyAllocator не работает. Segmentation fault на строке 36 в WIP_BuddyAllocator.cc
-    cout << "Buddy allocator started" << endl;
     BuddyAllocator* buddyAllocator = new BuddyAllocator();
     TextMapTest(buddyAllocator, "Buddy allocator", text_container);
     delete buddyAllocator;
-    cout << "Buddy allocator ended" << endl;
+
     free(ReadBuffer);
     return 0;
 }
