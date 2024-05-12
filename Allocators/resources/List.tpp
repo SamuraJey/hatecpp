@@ -22,6 +22,7 @@ class List {
             return;
         }
         insert(root, new_el);
+        return;
     }
 
     inline void replace(E* entry, E* with) noexcept {
@@ -39,16 +40,23 @@ class List {
         return rem;
     }
 
-    void remove(E* entry) {
-        // segfault - errore source some place where List entrys constructed and ill-initialized with nullptrs
+    // might be depricated
+    bool pop(E*& el) {
+        el = root->next;
+        if (el == root)
+            return root = nullptr;
+        else
+            return (root->next = el->next)->prev = root;
+    }
+
+    bool remove(E* entry) {
         E* prev = entry->prev;
         E* next = entry->next;
         if (entry == root && entry == (root = next)) {
-            root = nullptr;
-            return;
+            return root = nullptr;
         }
         (prev->next = next)->prev = prev;
-        return;
+        return true;
     }
 
     inline E* getRoot() noexcept {
@@ -57,6 +65,10 @@ class List {
 
     inline bool isEmpty() noexcept {
         return root == nullptr;
+    }
+
+    inline bool isNotEmpty() noexcept {
+        return root;
     }
 };
 
