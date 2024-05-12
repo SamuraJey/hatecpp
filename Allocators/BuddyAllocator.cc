@@ -74,7 +74,6 @@ void BuddyAllocator::deallocate(void* ptr) {
     BlockHeader* neighbor = Block_ptr(block_idx ^ 1, level);
 
     if (level < BUDDY_MAX_LEVEL && neighbor->level == level && neighbor->free) {
-        // some code
         do {
             DBG(++deallocate_cnt2;)
             listsMask ^= levelLists[level].remove(neighbor) << level;
@@ -85,10 +84,9 @@ void BuddyAllocator::deallocate(void* ptr) {
             ++level;
             neighbor = Block_ptr(block_idx ^ 1, level);
         } while (level < BUDDY_MAX_LEVEL && neighbor->level == level && neighbor->free);
-        -
+        block = Block_ptr(block_idx, level);
+        block->level = level;
     }
-    block = Block_ptr(block_idx, level);
-    block->level = level;
     block->free = true;
     levelLists[level].put(block);
     listsMask |= 1 << level;
