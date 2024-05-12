@@ -49,7 +49,7 @@ DescriptorAllocator::DescriptorAllocator()
 }
 
 DescriptorAllocator::~DescriptorAllocator() {
-    check_memory();
+    DBG(check_memory();)
     free(buffer);
 }
 
@@ -74,7 +74,6 @@ void DescriptorAllocator::mark_free(BlockHeader* block) {
     block->getRightDescriptor()->free = true;
     if (root == nullptr) {
         root = block->prev = block->next = block;
-        root = block;
         return;
     }
     (block->prev = root->prev)->next = block;

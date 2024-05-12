@@ -12,7 +12,8 @@ class PoolAllocator : public Allocator {
 
    private:
     struct Buffer;
-    Buffer* buffer_list_head;  // Ссылка на список буферов - поле. Для каждого экземпляра аллокатора она своя
+    Buffer* buffer_list_head;
+    size_t space, top;
     void createNewBuffer(size_t size);
 };
 #endif  // POOLALLOCATOR_H

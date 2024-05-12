@@ -27,38 +27,22 @@ LinkedListAllocator::LinkedListAllocator()
     root->prev = root->next = root = reinterpret_cast<BlockHeader*>(buffer);
     root->size = LINKED_BUFFER_SIZE;
 
-#if DEBUG
-    bytes_allocated = 0;
-    max_bytes_used = bytes_used = free_header;
-    max_block_count = block_counter = 1;
-    block_size_distribution[LINKED_BUFFER_SIZE] = 1;
-
-    printf(
-        "Linked List Allocator construction succesful\n\
-root: %p, buffer size: %lu\n\n",
-        root, LINKED_BUFFER_SIZE);
-#endif
+    DBG(bytes_allocated = 0;
+        max_bytes_used = bytes_used = free_header;
+        max_block_count = block_counter = 1;
+        block_size_distribution[LINKED_BUFFER_SIZE] = 1;
+        printf("Linked List Allocator construction succesful\nroot: %p, buffer size: %lu\n\n", root, LINKED_BUFFER_SIZE);)
 }
 
 LinkedListAllocator::~LinkedListAllocator() {
-#if DEBUG
-    printf(
-        "Linked Aist Allocator destructor log\n\
-root: addr: %p, size: %lu\n\
-bytes left allocated: %lu, bytes left used: %lu, max bytes used: %lu\n\
-single block left? %d, block count: %lu, max block count: %lu\n\
-block distribution:\n",
-        root, root->size,
-        bytes_allocated, bytes_used, max_bytes_used,
-        root->prev == root && root == root->next, block_counter, max_block_count);
-
-    for (size_t size = 0; size <= LINKED_BUFFER_SIZE; ++size) {
-        size_t count = block_size_distribution[size];
-        if (count) {
-            printf("size %lu blocks %lu\n", size, count);
-        }
-    }
-#endif
+    DBG(printf("Linked Aist Allocator destructor log\nroot: addr: %p, size: %lu\nbytes left allocated: %lu, bytes left used: %lu, max bytes used: %lu\nsingle block left? %d, block count: %lu, max block count: %lu\nblock distribution:\n",
+               root, root->size, bytes_allocated, bytes_used, max_bytes_used, root->prev == root && root == root->next, block_counter, max_block_count);
+        for (size_t size = 0; size <= LINKED_BUFFER_SIZE; ++size) {
+            size_t count = block_size_distribution[size];
+            if (count) {
+                printf("size %lu blocks %lu\n", size, count);
+            }
+        })
     free(buffer);
 }
 
@@ -98,24 +82,21 @@ last alloc request/last checked block capacity: %lu/%lu\n",
     // От блока достаточного размера будем отрезать кусок требуемого размера
     size_t spare_space = cur->size - min_req_size;
     if (spare_space < free_header) {
-#if DEBUG
-        bytes_allocated += cur->size - alloc_header;
-        bytes_used += cur->size - free_header;
-        max_bytes_used = (bytes_used > max_bytes_used) ? (bytes_used) : (max_bytes_used);
-#endif
+        DBG(bytes_allocated += cur->size - alloc_header;
+            bytes_used += cur->size - free_header;
+            max_bytes_used = (bytes_used > max_bytes_used) ? (bytes_used) : (max_bytes_used);)
         mark_used(cur);
         return cur->data;
     }
 
-#if DEBUG
-    bytes_allocated += size;
-    bytes_used += min_req_size;
-    ++block_counter;
-    max_block_count = (block_counter > max_block_count) ? (block_counter) : (max_block_count);
-    --block_size_distribution[cur->size];
-    ++block_size_distribution[min_req_size];
-    ++block_size_distribution[spare_space];
-#endif
+    DBG(bytes_allocated += size;
+        bytes_used += min_req_size;
+        ++block_counter;
+        max_block_count = (block_counter > max_block_count) ? (block_counter) : (max_block_count);
+        --block_size_distribution[cur->size];
+        ++block_size_distribution[min_req_size];
+        ++block_size_distribution[spare_space];)
+
     BlockHeader* cuted_block = reinterpret_cast<BlockHeader*>(reinterpret_cast<char*>(cur) + spare_space);
     cur->size = spare_space;
     cuted_block->size = min_req_size;
@@ -125,11 +106,11 @@ last alloc request/last checked block capacity: %lu/%lu\n",
 void LinkedListAllocator::deallocate(void* ptr) {
     //!!! ptr - адрес на начала данных, не блока
     BlockHeader* to_free = reinterpret_cast<BlockHeader*>(reinterpret_cast<char*>(ptr) - alloc_header);
-#if DEBUG
-    bytes_allocated -= to_free->size - alloc_header;
-    bytes_used -= to_free->size - free_header;
-    max_bytes_used = (bytes_used > max_bytes_used) ? (bytes_used) : (max_bytes_used);
-#endif
+
+    DBG(bytes_allocated -= to_free->size - alloc_header;
+        bytes_used -= to_free->size - free_header;
+        max_bytes_used = (bytes_used > max_bytes_used) ? (bytes_used) : (max_bytes_used);)
+
     if (!root) {
         root = to_free->prev = to_free->next = to_free;
         return;
@@ -157,38 +138,34 @@ void LinkedListAllocator::deallocate(void* ptr) {
     case 1:
         (to_free->prev = next_free->prev)->next = (to_free->next = next_free->next)->prev = to_free;
 
-#if DEBUG
-        bytes_used -= free_header;
-        --block_counter;
-        --block_size_distribution[to_free->size];
-        --block_size_distribution[next_free->size];
-        ++block_size_distribution[to_free->size + next_free->size];
-#endif
+        DBG(bytes_used -= free_header;
+            --block_counter;
+            --block_size_distribution[to_free->size];
+            --block_size_distribution[next_free->size];
+            ++block_size_distribution[to_free->size + next_free->size];)
+
         to_free->size += next_free->size;
         break;
     // Случай 2: только сосед слева => присоеденяемся к нему
     case 2:
-#if DEBUG
-        bytes_used -= free_header;
-        --block_counter;
-        --block_size_distribution[prev_free->size];
-        --block_size_distribution[to_free->size];
-        ++block_size_distribution[prev_free->size + to_free->size];
-#endif
+        DBG(bytes_used -= free_header;
+            --block_counter;
+            --block_size_distribution[prev_free->size];
+            --block_size_distribution[to_free->size];
+            ++block_size_distribution[prev_free->size + to_free->size];)
 
         prev_free->size += to_free->size;
         break;
     // Случай 3: оба соседа слева и справа => вырезаем правого и присоединяем себя и правого к левому
     case 3:
         mark_used(next_free);
-#if DEBUG
-        bytes_used -= 2 * free_header;
-        block_counter -= 2;
-        --block_size_distribution[prev_free->size];
-        --block_size_distribution[to_free->size];
-        --block_size_distribution[next_free->size];
-        ++block_size_distribution[prev_free->size + to_free->size + next_free->size];
-#endif
+        DBG(bytes_used -= 2 * free_header;
+            block_counter -= 2;
+            --block_size_distribution[prev_free->size];
+            --block_size_distribution[to_free->size];
+            --block_size_distribution[next_free->size];
+            ++block_size_distribution[prev_free->size + to_free->size + next_free->size];)
+
         prev_free->size += to_free->size + next_free->size;
         break;
     }

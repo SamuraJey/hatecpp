@@ -5,6 +5,11 @@
 #include <algorithm>
 #include <iostream>
 
+DBG(static uint64_t allocate_cnt1 = 0;
+    static uint64_t allocate_cnt2 = 0;
+    static uint64_t deallocate_cnt1 = 0;
+    static uint64_t deallocate_cnt2 = 0;)
+
 struct BuddyAllocator::BlockHeader {
     unsigned char level;
     bool free;
@@ -26,13 +31,12 @@ BuddyAllocator::BuddyAllocator()
 }
 
 BuddyAllocator::~BuddyAllocator() {
-#if DEBUG
-    check_memory();
-#endif
+    DBG(check_memory(); printf("\nallocate calls: %d\n allocate while: %d\ndealocate calls: %d\ndealocate while: %d\n", allocate_cnt1, allocate_cnt2, deallocate_cnt1, deallocate_cnt2);)
     delete[] buffer;
 }
 
 char* BuddyAllocator::allocate(size_t size) {
+    DBG(++allocate_cnt1;)
     size_t allocateSize = std::max(sizeof(BlockHeader), size + offsetof(BlockHeader, data));
     size_t req_level;
     asm("bsr %1, %0" : "=r"(req_level) : "r"(allocateSize - 1 << 1));
@@ -45,6 +49,7 @@ char* BuddyAllocator::allocate(size_t size) {
     BlockHeader* block_ptr = levelLists[level].pop();
 
     while (level > req_level) {
+        DBG(++allocate_cnt2;)
         --level;
         BlockHeader* restored = reinterpret_cast<BlockHeader*>(reinterpret_cast<char*>(block_ptr) + (1 << level));
         restored->level = level;
@@ -58,6 +63,7 @@ char* BuddyAllocator::allocate(size_t size) {
 }
 
 void BuddyAllocator::deallocate(void* ptr) {
+    DBG(++deallocate_cnt1;)
     BlockHeader* block = reinterpret_cast<BlockHeader*>(static_cast<char*>(ptr) - offsetof(BlockHeader, data));
     size_t level = block->level;
     // Блок и его приятель стоят вплотную. Т.е. их индексы отличаются на 1.
@@ -67,14 +73,19 @@ void BuddyAllocator::deallocate(void* ptr) {
     size_t block_idx = Block_idx(block, level);
     BlockHeader* neighbor = Block_ptr(block_idx ^ 1, level);
 
-    while (level < BUDDY_MAX_LEVEL && neighbor->level == level && neighbor->free) {
-        listsMask &= levelLists[level].remove(neighbor) << level;
-        // Обьединение пары даёт блок следующего уровня двойного размера. Поэтому индекс такого блока будет вдвое меньше.
-        // Note индекс объединения пары блоков = общей части индексов этих блоков (без последнего отличающегося бита)
-        // Note2 индексация аналогична реализации кучи на массиве. Блок и Приятель = предок и брат, их обьединение = родитель
-        block_idx >>= 1;
-        ++level;
-        neighbor = Block_ptr(block_idx ^ 1, level);
+    if (level < BUDDY_MAX_LEVEL && neighbor->level == level && neighbor->free) {
+        // some code
+        do {
+            DBG(++deallocate_cnt2;)
+            listsMask ^= levelLists[level].remove(neighbor) << level;
+            // Обьединение пары даёт блок следующего уровня двойного размера. Поэтому индекс такого блока будет вдвое меньше.
+            // Note индекс объединения пары блоков = общей части индексов этих блоков (без последнего отличающегося бита)
+            // Note2 индексация аналогична реализации кучи на массиве. Блок и Приятель = предок и брат, их обьединение = родитель
+            block_idx >>= 1;
+            ++level;
+            neighbor = Block_ptr(block_idx ^ 1, level);
+        } while (level < BUDDY_MAX_LEVEL && neighbor->level == level && neighbor->free);
+        -
     }
     block = Block_ptr(block_idx, level);
     block->level = level;
@@ -100,9 +111,9 @@ void BuddyAllocator::check_memory() {
 
 inline size_t BuddyAllocator::Block_idx(BlockHeader* block_ptr, size_t block_level) noexcept {
     static uintptr_t bufferOfset = reinterpret_cast<uintptr_t>(buffer);
-    return (reinterpret_cast<uintptr_t>(block_ptr) - bufferOfset) / (1 << block_level);
+    return (reinterpret_cast<uintptr_t>(block_ptr) - bufferOfset) >> block_level;
 }
 
 inline BuddyAllocator::BlockHeader* BuddyAllocator::Block_ptr(size_t block_idx, size_t block_level) noexcept {
-    return reinterpret_cast<BlockHeader*>(buffer + (1 << block_level) * block_idx);
+    return reinterpret_cast<BlockHeader*>(buffer + (block_idx << block_level));
 }

@@ -33,7 +33,7 @@ class CStringComparator {
 };
 
 void TextMapTest(Allocator* allocator, const char* allocator_name, TextContainer text) {
-    printf("\n\n>>%s test results\n", allocator_name);
+    printf("\n>>%s test results\n", allocator_name);
 
     std::chrono::_V2::system_clock::time_point time_mark;
     std::chrono::duration<double> alloc_time;
@@ -53,37 +53,40 @@ void TextMapTest(Allocator* allocator, const char* allocator_name, TextContainer
         std::sort(SortedWords.begin(), SortedWords.end(), cmp);
         int i = 0;
         int num_of_word = 0;
+        int num_unique_words = 0;
         for (auto Pair : SortedWords) {
             if (i++ < 10)
                 printf("%s: %d\n", Pair.first, Pair.second);
             num_of_word += Pair.second;
+            num_unique_words++;
         }
-        printf("Total number of words: %d\n", num_of_word);
+        printf("Different words number: %d\nTotal words number:     %d\n", num_unique_words, num_of_word);
 
         time_mark = std::chrono::high_resolution_clock::now();
         // именно здесь разрушается Map и освобождается занятая ей память.
     }
     dealloc_time = std::chrono::high_resolution_clock::now() - time_mark;
 
-    printf("counting time:     %f sec\ndeallocation time: %f sec\n", alloc_time.count(), dealloc_time.count());
+    printf("counting time:     %f sec\ndeallocation time: %f sec\n\n", alloc_time.count(), dealloc_time.count());
 }
 
 int main() {
     char* ReadBuffer = ReadFromFile("../Allocators/resources/war_en.txt");
     TextContainer text_container(ReadBuffer);
 
-    ReferenceAllocator* referenceAllocator = new ReferenceAllocator();
-    TextMapTest(referenceAllocator, "Reference Allocator", text_container);
-    delete referenceAllocator;
+    /*
+        ReferenceAllocator* referenceAllocator = new ReferenceAllocator();
+        TextMapTest(referenceAllocator, "Reference Allocator", text_container);
+        delete referenceAllocator;
 
-    PoolAllocator* poolAllocator = new PoolAllocator();
-    TextMapTest(poolAllocator, "Pool allocator", text_container);
-    delete poolAllocator;
+        PoolAllocator* poolAllocator = new PoolAllocator();
+        TextMapTest(poolAllocator, "Pool allocator", text_container);
+        delete poolAllocator;
 
-    LinkedListAllocator* linkedListAllocator = new LinkedListAllocator();
-    TextMapTest(linkedListAllocator, "Linked list allocator", text_container);
-    delete linkedListAllocator;
-
+        LinkedListAllocator* linkedListAllocator = new LinkedListAllocator();
+        TextMapTest(linkedListAllocator, "Linked list allocator", text_container);
+        delete linkedListAllocator;
+    */
     DescriptorAllocator* descriptorAllocator = new DescriptorAllocator();
     TextMapTest(descriptorAllocator, "Descriptor allocator", text_container);
     delete descriptorAllocator;

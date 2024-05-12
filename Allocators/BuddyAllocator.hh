@@ -28,8 +28,8 @@ class BuddyAllocator : public Allocator {
 
    private:
     // scary expression wrapper functions
-    size_t Block_idx(BlockHeader* block_ptr, size_t block_level) noexcept;
-    BlockHeader* Block_ptr(size_t block_idx, size_t block_level) noexcept;
+    inline size_t Block_idx(BlockHeader* block_ptr, size_t block_level) noexcept;
+    inline BlockHeader* Block_ptr(size_t block_idx, size_t block_level) noexcept;
 };
 
 #endif  // !BUDDYALLOCATOR_H
