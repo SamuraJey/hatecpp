@@ -43,6 +43,7 @@ char* BuddyAllocator::allocate(size_t size) {
     listsMask -= 1 << req_level;
 
     BlockHeader* block_ptr = levelLists[level].pop();
+
     while (level > req_level) {
         --level;
         BlockHeader* restored = reinterpret_cast<BlockHeader*>(reinterpret_cast<char*>(block_ptr) + (1 << level));
@@ -50,7 +51,7 @@ char* BuddyAllocator::allocate(size_t size) {
         restored->free = true;
         levelLists[level].put(restored);
     }
-    block_ptr->level = level;
+    block_ptr->level = req_level;
     block_ptr->free = false;
 
     return block_ptr->data;
