@@ -15,3 +15,7 @@ add_executable(binary_tree
     Binary\ tree/main.cc
     Binary\ tree/BinarySearchTree.cc
 )
+
+add_executable(smart_pointers
+    Pointers/main.cc
+)
