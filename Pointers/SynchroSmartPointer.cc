@@ -1,3 +1,5 @@
+#include <mutex>
+#include <stdexcept>
 template <class T>
 class SynchroSmartPointer {
     struct SynchroObject {
@@ -5,7 +7,7 @@ class SynchroSmartPointer {
         std::mutex locker;
     };
     T* value;
-    SynchroObject* synchroCount;
+    SynchroObject* descriptor;
 
    public:
     template <class V>
@@ -16,25 +18,25 @@ class SynchroSmartPointer {
     explicit SynchroSmartPointer(T* value) {
         if (value == nullptr) {
             // TODO нормально ли такой exception?
-            throw std::logic_error("bad value\n");
+            throw std::logic_error("bad value - nullptr\n");
         }
         this->value = value;
-        this->synchroCount = new SynchroObject();
-        this->synchroCount->count = 1;
-        printf("Method: constructor, count: %llu, ref: %d\n", static_cast<size_t>(this->synchroCount->count), this);
+        this->descriptor = new SynchroObject();
+        this->descriptor->count = 1;
+        printf("Method: constructor, count: %llu, ref: %p\n", static_cast<size_t>(this->descriptor->count), this);
     }
 
     SynchroSmartPointer(const SynchroSmartPointer& other) {
-        this->synchroCount = new SynchroObject();
-        lock();
+        // this->descriptor = new SynchroObject();
+        //  lock();
         copyObject(other);
-        unlock();
+        // unlock();
     }
 
     ~SynchroSmartPointer() {
-        lock();
+        // lock();
         deleteObject();
-        unlock();
+        // unlock();
     }
 
     T* operator->() {
@@ -50,43 +52,47 @@ class SynchroSmartPointer {
     }
 
     SynchroSmartPointer& operator=(const SynchroSmartPointer& other) {
-        lock();
         deleteObject();
         copyObject(other);
-        unlock();
         return *this;
     }
 
    private:
     void lock() {
-        this->synchroCount->locker.lock();
+        this->descriptor->locker.lock();
     }
 
     void unlock() {
-        this->synchroCount->locker.unlock();
+        this->descriptor->locker.unlock();
     }
 
     bool isLock() {
-        return this->synchroCount->locker.try_lock();
+        return this->descriptor->locker.try_lock();
     }
 
     void copyObject(const SynchroSmartPointer& other) {
         this->value = other.value;
-        if (this->synchroCount == nullptr) {
-            this->synchroCount = new SynchroObject();
-        }
-        this->synchroCount->count = other.synchroCount->count;
-        this->synchroCount->count++;
-        printf("Method: copyObject, count: %llu, ref: %d\n", static_cast<size_t>(this->synchroCount->count), this);
+        this->descriptor = other.descriptor;
+        this->descriptor->locker.lock();
+        this->descriptor->count++;
+        printf("Method: copyObject, count: %llu, ref: %p\n", static_cast<size_t>(this->descriptor->count), this);
+        this->descriptor->locker.unlock();
     }
 
     void deleteObject() {
-        if (this->synchroCount->count > 0) {
-            this->synchroCount->count--;
-            printf("Method: deleteObject, count: %llu, ref: %d\n", static_cast<size_t>(this->synchroCount->count), this);
+        this->descriptor->locker.lock();
+        if (this->descriptor->count > 0) {
+            this->descriptor->count--;
+            printf("Method: deleteObject, count: %llu, ref: %p\n", static_cast<size_t>(this->descriptor->count), this);
+        } else {
+            throw std::runtime_error("that should not supposed to happen");
         }
-        if (this->synchroCount->count == 0) {
+
+        if (this->descriptor->count == 0) {
+            delete this->descriptor;
             delete this->value;
+        } else {
+            this->descriptor->locker.unlock();
         }
     }
 };

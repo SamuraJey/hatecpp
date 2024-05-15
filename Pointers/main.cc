@@ -13,7 +13,7 @@ int main() {
     std::string* ptr0 = new std::string("Basic String");
 
     SmartPointer ptr1(new std::string("Hello, world"));
-    SmartPointer ptr2(new std::string("hatecppnomore"));
+    SmartPointer ptr2(new std::string("String number 3"));
     // implicit copy constructor induced by assigment semantics
     SmartPointer ptr3 = ptr1;
     // assigment operator

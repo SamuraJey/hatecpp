@@ -1,4 +1,5 @@
 // макрос оборачивающий функцию printf. Если выключить - припроцессор выпилит все дебаг принты из изходника ещё перед компиляцией
+// todo change printf to something more modern??? 
 #if true
 #define debug(format, ...) printf(format __VA_OPT__(, ) __VA_ARGS__)
 #else
@@ -71,9 +72,9 @@ class SmartPointer {
         case 0:
             throw std::runtime_error("that should not supposed to happen");
             break;
-
         case 1:
             debug("delete resource\n");
+            delete
             delete this->resource;
         default:
             (*this->count)--;
