@@ -27,8 +27,9 @@ int main() {
     list.push_back(ptr3);
 
     debug("\nReading from vector\n\n");
+
     for (int i = 0; i < list.size(); i++) {
-        printf("list[%d]: %s\n", i, (list[i])->c_str());
+        printf("list[%d]: %s\n", i, (*list[i]).c_str());
     }
     /*
        // Tests for SynchroSmartPointer
