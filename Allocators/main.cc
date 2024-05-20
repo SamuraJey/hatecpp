@@ -35,7 +35,7 @@ class CStringComparator {
 void TextMapTest(Allocator* allocator, const char* allocator_name, TextContainer text) {
     printf("\n>>%s test results\n", allocator_name);
 
-    std::chrono::_V2::system_clock::time_point time_mark;
+    std::chrono::high_resolution_clock::time_point time_mark;
     std::chrono::duration<double> alloc_time;
     std::chrono::duration<double> dealloc_time;
     {
@@ -74,19 +74,18 @@ int main() {
     char* ReadBuffer = ReadFromFile("../Allocators/resources/war_en.txt");
     TextContainer text_container(ReadBuffer);
 
-    /*
-        ReferenceAllocator* referenceAllocator = new ReferenceAllocator();
-        TextMapTest(referenceAllocator, "Reference Allocator", text_container);
-        delete referenceAllocator;
+    ReferenceAllocator* referenceAllocator = new ReferenceAllocator();
+    TextMapTest(referenceAllocator, "Reference Allocator", text_container);
+    delete referenceAllocator;
 
-        PoolAllocator* poolAllocator = new PoolAllocator();
-        TextMapTest(poolAllocator, "Pool allocator", text_container);
-        delete poolAllocator;
+    PoolAllocator* poolAllocator = new PoolAllocator();
+    TextMapTest(poolAllocator, "Pool allocator", text_container);
+    delete poolAllocator;
 
-        LinkedListAllocator* linkedListAllocator = new LinkedListAllocator();
-        TextMapTest(linkedListAllocator, "Linked list allocator", text_container);
-        delete linkedListAllocator;
-    */
+    LinkedListAllocator* linkedListAllocator = new LinkedListAllocator();
+    TextMapTest(linkedListAllocator, "Linked list allocator", text_container);
+    delete linkedListAllocator;
+    
     DescriptorAllocator* descriptorAllocator = new DescriptorAllocator();
     TextMapTest(descriptorAllocator, "Descriptor allocator", text_container);
     delete descriptorAllocator;

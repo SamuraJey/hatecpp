@@ -33,6 +33,20 @@ struct DescriptorAllocator::BlockHeader {
     }
 };
 
+/**
+ * @brief Constructs a DescriptorAllocator object.
+ * 
+ * This constructor initializes the DescriptorAllocator object by allocating a buffer of size LINKED_BUFFER_SIZE
+ * and setting up the necessary descriptors and block headers for the allocator.
+ * 
+ * The buffer is used to store the memory blocks that will be allocated by the DescriptorAllocator.
+ * The buffer is divided into blocks, each represented by a descriptor and a block header.
+ * The descriptors keep track of the size and availability of each block, while the block headers
+ * maintain the linked list structure of the blocks.
+ * 
+ * The constructor sets the initial state of the allocator by marking the first and last descriptors as occupied,
+ * and setting the root block header to point to the first descriptor.
+ */
 DescriptorAllocator::DescriptorAllocator()
     : buffer(static_cast<char*>(malloc(LINKED_BUFFER_SIZE))),
       endBuffer(buffer + LINKED_BUFFER_SIZE) {
@@ -53,6 +67,11 @@ DescriptorAllocator::~DescriptorAllocator() {
     free(buffer);
 }
 
+/**
+ * Marks a block as used in the descriptor allocator.
+ * 
+ * @param block The block to mark as used.
+ */
 void DescriptorAllocator::mark_used(BlockHeader* block) {
     block->descriptor.free = false;
     block->getRightDescriptor()->free = false;
@@ -69,6 +88,11 @@ void DescriptorAllocator::mark_used(BlockHeader* block) {
     return;
 }
 
+/**
+ * Marks a block as free in the descriptor allocator.
+ * 
+ * @param block The block to mark as free.
+ */
 void DescriptorAllocator::mark_free(BlockHeader* block) {
     block->descriptor.free = true;
     block->getRightDescriptor()->free = true;
@@ -81,6 +105,13 @@ void DescriptorAllocator::mark_free(BlockHeader* block) {
     return;
 }
 
+/**
+ * Allocates a block of memory of the specified size from the descriptor allocator.
+ * 
+ * @param size The size of the memory block to allocate.
+ * @return A pointer to the allocated memory block.
+ * @throws std::bad_alloc if there is not enough memory available.
+ */
 char* DescriptorAllocator::allocate(size_t size) {
     if (root == nullptr) {
         throw std::bad_alloc();
@@ -117,6 +148,11 @@ char* DescriptorAllocator::allocate(size_t size) {
     return newBlock->data;
 }
 
+/**
+ * Deallocates a block of memory previously allocated by the DescriptorAllocator.
+ *
+ * @param data A pointer to the memory block to deallocate.
+ */
 void DescriptorAllocator::deallocate(void* data) {
     BlockHeader* mid_block = reinterpret_cast<BlockHeader*>(static_cast<char*>(data) - sizeof(Descriptor));
     Descriptor* leftDescriptor = reinterpret_cast<Descriptor*>(mid_block) - 1;

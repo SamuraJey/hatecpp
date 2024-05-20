@@ -7,6 +7,15 @@
 #include "resources/List.tpp"
 #include "resources/constants.hh"
 
+/**
+ * @class BuddyAllocator
+ * @brief A class that implements a buddy allocator for managing memory allocation and deallocation.
+ * 
+ * The BuddyAllocator class is a derived class of the Allocator base class. It provides functionality
+ * for allocating and deallocating memory using the buddy(binary) allocation algorithm. It
+ * divides the memory into blocks sizes in power of 2 and maintains a list of free blocks at each level (power of 2).
+ * 
+ */
 class BuddyAllocator : public Allocator {
    private:
     static_assert(BUDDY_MAX_LEVEL < 64);

@@ -1,5 +1,15 @@
 #include <mutex>
 #include <stdexcept>
+/**
+ * @class SynchroSmartPointer
+ * @brief DOES NOT WORK PROPERLY A smart pointer class that provides synchronized access to a dynamically allocated object.
+ *
+ * The SynchroSmartPointer class manages the lifetime of a dynamically allocated object and ensures
+ * synchronized access to it using a mutex. It keeps track of the number of references to the object
+ * and automatically deletes the object when the last reference goes out of scope.
+ *
+ * @tparam T The type of the object being managed by the smart pointer.
+ */
 template <class T>
 class SynchroSmartPointer {
     struct SynchroObject {

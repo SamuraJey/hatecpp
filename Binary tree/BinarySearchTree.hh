@@ -1,6 +1,14 @@
 #ifndef BINARY_TREE_H
 #define BINARY_TREE_H
 
+/**
+ * @class BinarySearchTree
+ * @brief Represents a binary search tree data structure.
+ *
+ * The BinarySearchTree class provides methods to insert, remove, display, and search elements in a binary search tree.
+ * It also supports finding the minimum and maximum values in the tree.
+ * @note Non functional-styled implementation. You may consider writing a functional-styled implementation.
+ */
 class BinarySearchTree {
    public:
     BinarySearchTree();

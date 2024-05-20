@@ -21,6 +21,13 @@ struct LinkedListAllocator::BlockHeader {
 constexpr size_t LinkedListAllocator::free_header = sizeof(LinkedListAllocator::BlockHeader);
 constexpr size_t LinkedListAllocator::alloc_header = sizeof(size_t);
 
+/**
+ * @brief Constructs a LinkedListAllocator object.
+ *
+ * This constructor initializes the LinkedListAllocator object by allocating a buffer of size LINKED_BUFFER_SIZE
+ * and setting the root pointer to point to the beginning of the buffer. It also initializes various member variables
+ * used for tracking memory allocation and deallocation statistics.
+ */
 LinkedListAllocator::LinkedListAllocator()
     // Синтаксис для инициализации константных полей. см. Constructors and member initializer lists
     : buffer(static_cast<char*>(malloc(LINKED_BUFFER_SIZE))) {
@@ -34,6 +41,11 @@ LinkedListAllocator::LinkedListAllocator()
         printf("Linked List Allocator construction succesful\nroot: %p, buffer size: %lu\n\n", root, LINKED_BUFFER_SIZE);)
 }
 
+/**
+ * @brief Destructor for the LinkedListAllocator class.
+ *
+ * This destructor is responsible for freeing the memory allocated by the LinkedListAllocator object.
+ */
 LinkedListAllocator::~LinkedListAllocator() {
     DBG(printf("Linked Aist Allocator destructor log\nroot: addr: %p, size: %lu\nbytes left allocated: %lu, bytes left used: %lu, max bytes used: %lu\nsingle block left? %d, block count: %lu, max block count: %lu\nblock distribution:\n",
                root, root->size, bytes_allocated, bytes_used, max_bytes_used, root->prev == root && root == root->next, block_counter, max_block_count);

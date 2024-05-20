@@ -12,10 +12,10 @@ add_executable(allocators
     )
 
 add_executable(binary_tree
-    Binary\ tree/main.cc
+    Binary\ tree/main_BinarySearchTree.cc
     Binary\ tree/BinarySearchTree.cc
 )
 
-add_executable(smart_pointers
-    Pointers/main.cc
+add_executable(smart_pointer
+    Pointers/main_SmartPointer.cc
 )
