@@ -1,6 +1,13 @@
 #ifndef TEXTCONTAINER_H
 #define TEXTCONTAINER_H
 
+/**
+ * @class TextContainer
+ * @brief Represents a container for text data.
+ * 
+ * The TextContainer class provides a way to store and manipulate text data.
+ * It allows iterating over the text and extracting individual words.
+ */
 class TextContainer {
     const char* iter;
     const char* const start;

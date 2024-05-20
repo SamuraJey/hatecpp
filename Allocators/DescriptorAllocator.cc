@@ -1,10 +1,9 @@
-
 #include "DescriptorAllocator.hh"
 
 #include <new>
 #include <stdexcept>
 
-#include "../constants.hh"
+#include "resources/constants.hh"
 
 struct DescriptorAllocator::Descriptor {
     size_t block_size;  // получалась обманчивая нотация BlockHeader.Descriptor.size читался как размер дискриптора, а не всго блока
@@ -22,26 +21,40 @@ struct DescriptorAllocator::BlockHeader {
     // эта функция всегда вызывается после работы с левым дескриптором. (искл 101 строка)
     // мб стоит добавить функции для синхронной работы с обоими дескрипторами для сокращения кода
     Descriptor* getRightDescriptor() {
-        return (Descriptor*)((char*)this + descriptor.block_size - sizeof(Descriptor));
+        return reinterpret_cast<Descriptor*>(reinterpret_cast<char*>(this) + descriptor.block_size - sizeof(Descriptor));
     }
 
     // синхронно меняет размер дескриптолров блока и возвращает ссылку на правый (для других махинаций если нужно)
     DescriptorAllocator::Descriptor* sync_size_set(size_t size) {
         descriptor.block_size = size;
-        Descriptor* linked_disk = (Descriptor*)((char*)this + size - sizeof(Descriptor));
+        Descriptor* linked_disk = reinterpret_cast<Descriptor*>(reinterpret_cast<char*>(this) + size - sizeof(Descriptor));
         linked_disk->block_size = size;
         return linked_disk;
     }
 };
 
+/**
+ * @brief Constructs a DescriptorAllocator object.
+ * 
+ * This constructor initializes the DescriptorAllocator object by allocating a buffer of size LINKED_BUFFER_SIZE
+ * and setting up the necessary descriptors and block headers for the allocator.
+ * 
+ * The buffer is used to store the memory blocks that will be allocated by the DescriptorAllocator.
+ * The buffer is divided into blocks, each represented by a descriptor and a block header.
+ * The descriptors keep track of the size and availability of each block, while the block headers
+ * maintain the linked list structure of the blocks.
+ * 
+ * The constructor sets the initial state of the allocator by marking the first and last descriptors as occupied,
+ * and setting the root block header to point to the first descriptor.
+ */
 DescriptorAllocator::DescriptorAllocator()
-    : buffer((char*)malloc(LINKED_BUFFER_SIZE)),
+    : buffer(static_cast<char*>(malloc(LINKED_BUFFER_SIZE))),
       endBuffer(buffer + LINKED_BUFFER_SIZE) {
-    // обромляющие дескрипторы для корректного обьединения крайних блоков штатной логикой
+    // Обрамляющие дескрипторы для корректного объединения крайних блоков штатной логикой
     reinterpret_cast<Descriptor*>(buffer)->free = false;
     (reinterpret_cast<Descriptor*>(endBuffer) - 1)->free = false;
 
-    root = (BlockHeader*)(buffer + sizeof(Descriptor));
+    root = reinterpret_cast<BlockHeader*>(buffer + sizeof(Descriptor));
     root->descriptor.block_size = LINKED_BUFFER_SIZE - 2 * sizeof(Descriptor);
     root->getRightDescriptor()->block_size = LINKED_BUFFER_SIZE - 2 * sizeof(Descriptor);
     root->descriptor.free = true;
@@ -50,17 +63,22 @@ DescriptorAllocator::DescriptorAllocator()
 }
 
 DescriptorAllocator::~DescriptorAllocator() {
-    check_memory();
+    DBG(check_memory();)
     free(buffer);
 }
 
+/**
+ * Marks a block as used in the descriptor allocator.
+ * 
+ * @param block The block to mark as used.
+ */
 void DescriptorAllocator::mark_used(BlockHeader* block) {
     block->descriptor.free = false;
     block->getRightDescriptor()->free = false;
     BlockHeader* prev = block->prev;
     BlockHeader* next = block->next;
     if (block == root && block == (root = next)) {
-        // Если удоляемый элемент в списке единственный, вырезать его не получится.
+        // Если удаляемый элемент в списке единственный, вырезать его не получится.
         // Затираем ссылку на такой список.
         root = nullptr;
         return;
@@ -70,12 +88,16 @@ void DescriptorAllocator::mark_used(BlockHeader* block) {
     return;
 }
 
+/**
+ * Marks a block as free in the descriptor allocator.
+ * 
+ * @param block The block to mark as free.
+ */
 void DescriptorAllocator::mark_free(BlockHeader* block) {
     block->descriptor.free = true;
     block->getRightDescriptor()->free = true;
     if (root == nullptr) {
         root = block->prev = block->next = block;
-        root = block;
         return;
     }
     (block->prev = root->prev)->next = block;
@@ -83,6 +105,13 @@ void DescriptorAllocator::mark_free(BlockHeader* block) {
     return;
 }
 
+/**
+ * Allocates a block of memory of the specified size from the descriptor allocator.
+ * 
+ * @param size The size of the memory block to allocate.
+ * @return A pointer to the allocated memory block.
+ * @throws std::bad_alloc if there is not enough memory available.
+ */
 char* DescriptorAllocator::allocate(size_t size) {
     if (root == nullptr) {
         throw std::bad_alloc();
@@ -98,9 +127,9 @@ char* DescriptorAllocator::allocate(size_t size) {
 
     // Не надо вырезать блок и сразу после добавлять другой.
     // Или подменить в списке первый вторым
-    // или вовсе не делать ничего: отдовать отрезанную часть, а первую половину оставить в покое (в списке свободных)
+    // Или вовсе не делать ничего: отдавать отрезанную часть, а первую половину оставить в покое (в списке свободных)
     size_t freeSpace = cur->descriptor.block_size - min_req_size;
-    // пустой блок не меньше sizeof(BlockHeader) + sizeof(Descriptor)
+    // Пустой блок не меньше sizeof(BlockHeader) + sizeof(Descriptor)
     if (freeSpace < sizeof(BlockHeader) + sizeof(Descriptor)) {
         mark_used(cur);
         return cur->data;
@@ -111,7 +140,7 @@ char* DescriptorAllocator::allocate(size_t size) {
     cur->getRightDescriptor()->block_size = freeSpace;
     cur->getRightDescriptor()->free = true;
 
-    BlockHeader* newBlock = (BlockHeader*)((char*)cur + freeSpace);
+    BlockHeader* newBlock = reinterpret_cast<BlockHeader*>(reinterpret_cast<char*>(cur) + freeSpace);
     newBlock->descriptor.block_size = min_req_size;
     newBlock->getRightDescriptor()->block_size = min_req_size;
     newBlock->descriptor.free = false;
@@ -119,10 +148,15 @@ char* DescriptorAllocator::allocate(size_t size) {
     return newBlock->data;
 }
 
+/**
+ * Deallocates a block of memory previously allocated by the DescriptorAllocator.
+ *
+ * @param data A pointer to the memory block to deallocate.
+ */
 void DescriptorAllocator::deallocate(void* data) {
-    BlockHeader* mid_block = (BlockHeader*)((char*)data - sizeof(Descriptor));
-    Descriptor* leftDescriptor = (Descriptor*)mid_block - 1;
-    Descriptor* rightDescriptor = (Descriptor*)((char*)mid_block + mid_block->descriptor.block_size);
+    BlockHeader* mid_block = reinterpret_cast<BlockHeader*>(static_cast<char*>(data) - sizeof(Descriptor));
+    Descriptor* leftDescriptor = reinterpret_cast<Descriptor*>(mid_block) - 1;
+    Descriptor* rightDescriptor = reinterpret_cast<Descriptor*>(reinterpret_cast<char*>(mid_block) + mid_block->descriptor.block_size);
     BlockHeader* left_block;
     BlockHeader* right_block;
 
@@ -134,7 +168,7 @@ void DescriptorAllocator::deallocate(void* data) {
 
     // Случай 1: только сосед справа => подменяем в списке соседа на себя и присоединяем его
     case 1:
-        right_block = (BlockHeader*)rightDescriptor;
+        right_block = reinterpret_cast<BlockHeader*>(rightDescriptor);
         (mid_block->prev = right_block->prev)->next = mid_block;
         (mid_block->next = right_block->next)->prev = mid_block;
 
@@ -146,18 +180,16 @@ void DescriptorAllocator::deallocate(void* data) {
 
     // Случай 2: только сосед слева => присоеденяемся к нему
     case 2:
-        left_block = (BlockHeader*)((char*)mid_block - leftDescriptor->block_size);
-
+        left_block = reinterpret_cast<BlockHeader*>(reinterpret_cast<char*>(mid_block) - leftDescriptor->block_size);
         left_block->descriptor.block_size += mid_block->descriptor.block_size;
         left_block->getRightDescriptor()->block_size = left_block->descriptor.block_size;
-
         left_block->getRightDescriptor()->free = true;
         break;
 
     // Случай 3: оба соседа слева и справа => вырезаем правого и присоединяем себя и правого к левому
     case 3:
-        left_block = (BlockHeader*)((char*)mid_block - leftDescriptor->block_size);
-        right_block = (BlockHeader*)rightDescriptor;
+        left_block = reinterpret_cast<BlockHeader*>(reinterpret_cast<char*>(mid_block) - leftDescriptor->block_size);
+        right_block = reinterpret_cast<BlockHeader*>(rightDescriptor);
 
         BlockHeader* next = right_block->next;
         BlockHeader* prev = right_block->prev;

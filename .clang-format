@@ -1,3 +1,4 @@
+# Our coding style
 BasedOnStyle: Google
 UseTab: Never
 IndentWidth: 4

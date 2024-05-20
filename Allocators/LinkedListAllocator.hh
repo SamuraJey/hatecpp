@@ -1,9 +1,19 @@
 #ifndef LINKEDLISTALLOCATOR_H
 #define LINKEDLISTALLOCATOR_H
 
-#include "../constants.hh"
-#include "Allocator.hh"
+#include "resources/Allocator.hh"
+#include "resources/constants.hh"
 
+/**
+ * @class LinkedListAllocator
+ * @brief A memory allocator that uses a linked list data structure to manage memory blocks.
+ * 
+ * The LinkedListAllocator class is a concrete implementation of the Allocator interface.
+ * It provides methods to allocate and deallocate memory blocks using a linked list data structure.
+ * 
+ * The allocator maintains a buffer of memory and uses a linked list of block headers to keep track of allocated and free blocks.
+ * Each block header contains information about the size and status (allocated or free) of the block.
+ */
 class LinkedListAllocator : public Allocator {
    public:
     LinkedListAllocator();

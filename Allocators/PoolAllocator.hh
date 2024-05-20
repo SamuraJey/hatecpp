@@ -2,7 +2,7 @@
 #define POOLALLOCATOR_H
 #include <stddef.h>
 
-#include "Allocator.hh"
+#include "resources/Allocator.hh"
 class PoolAllocator : public Allocator {
    public:
     PoolAllocator();
@@ -11,10 +11,9 @@ class PoolAllocator : public Allocator {
     void deallocate(void*) override;
 
    private:
-    // Декларация структуры в классе
-    // Реализация прописыватеся в cpp через неймспейса класса, так же как и остальные поля
     struct Buffer;
-    Buffer* buffer_list_head;  // Ссылка на список буферов - поле. Для каждого экземпляра аллокатора она своя
+    Buffer* buffer_list_head;
+    size_t space, top;
     void createNewBuffer(size_t size);
 };
 #endif  // POOLALLOCATOR_H

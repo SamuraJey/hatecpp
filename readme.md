@@ -1,12 +1,19 @@
 # FILP-MO
 Repository for tasks from the course "Functional and logical programming" 
 Completed tasks:
-- [Text Map - count number of words in the text](https://github.com/URFU-Study/FILP-MO/commit/53c0e22fb37340fa909994b49fe4797fe9cbea5e)
-- [Pool Allocator](https://github.com/URFU-Study/FILP-MO/commit/c205152b836e6827b73f4f20b9254b608e922417)
-- [Linked List Allocator](https://github.com/URFU-Study/FILP-MO/commit/c205152b836e6827b73f4f20b9254b608e922417)
-- [Descriptor Allocator](https://github.com/URFU-Study/FILP-MO/commit/fbdfc2315df60c41b7f1fef1afd2f99633c09a68)
+- Text Map - count number of words in the text
+- Pool Allocator
+- Linked List Allocator
+- Descriptor Allocator
+- Buddy Allocator (Binary Allocator)
+- Binary Search Tree
+- Smart Pointer
+
+Building with CMake, C++23 standard is used.
+Buddy allocator is using assembly instruction "bsr" which is not supported by all processors, so it may not work on ARM processors.\
+SynchroSmartPointer is not working properly, it is not recommended to use it. But feel free to try fix it and make a pull request.
 
 
 ## Authors
-- Dmitrii Chernyavskii
-- Sergei Zaremba
+- [Dmitrii Chernyavskii](https://github.com/Jamaske)
+- [Sergei Zaremba](https://github.com/SamuraJey)

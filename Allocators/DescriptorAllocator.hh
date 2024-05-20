@@ -1,8 +1,15 @@
 #ifndef DESCRIPTOR_ALLOCATOR_H
 #define DESCRIPTOR_ALLOCATOR_H
 
-#include "Allocator.hh"
+#include "resources/Allocator.hh"
 
+/**
+ * @class DescriptorAllocator
+ * @brief A class that represents a descriptor allocator.
+ * 
+ * The DescriptorAllocator class is a subclass of the Allocator class. It provides functionality for allocating and deallocating memory blocks.
+ * Using linked list of free blocks, it allocates memory blocks of the requested size using the first-fit strategy and descriptors at the sides of the block.
+ */
 class DescriptorAllocator : public Allocator {
    public:
     DescriptorAllocator();
