@@ -118,6 +118,10 @@ class SmartPointer {
         case 1:
             debug("delete resource\n");
             delete this->resource;
+            delete this->count; 
+            this->resource = nullptr;
+            this->count = nullptr;
+            break;
         default:
             (*this->count)--;
             debug("method revoke: %p, recource: %p, count: %llu\n", this, this->resource, *this->count);
